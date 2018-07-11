@@ -1,0 +1,35 @@
+         MACRO ,                                                GP10065 00010000
+&NM      SHEX  &OUT,&IN,&XL,&FILL=C' '  HEX OUTPUT FORMATTING   GP10065 00020000
+.*                                                                      00030000
+.*  CONVERT DATA TO PRINTABLE HEX FORMAT                        GP10081 00040000
+.*    ADDRESSES MAY NOT BE IN ddd(b) FORMAT                     GP10081 00050000
+.*    OUTVAR MAY NOT BE A REGISTER                              GP10081 00060000
+.*    THREE FORMS ARE SUPPORTED:                                GP10081 00070000
+.*    1) SHEX  OUTVAR,INVAR       USES L'INVAR FOR LENGTHS <=7  GP10081 00080000
+.*    2) SHEX  OUTVAR,INVAR,LN    LN IS INPUT LENGTH <=7        GP10081 00090000
+.*    3  SHEX  OUTVAR,(REG),LN    FORMAT REG VALUE OF LEN <=4   GP10081 00100000
+.*                                                                      00110000
+         LCLC  &L,&IL                                           GP10065 00120000
+         LCLA  &K                                               GP10081 00130000
+&K       SETA  K'&IN                                            GP10081 00140000
+         AIF   (&K LT 3).NOINREG                                GP10081 00150000
+         AIF   ('&IN'(&K,1) NE ')').NOINREG                     GP10081 00160000
+&NM      ST    &IN(1),COMMDWRD                                  GP10081 00170000
+         UNPK  &OUT.(2*&XL+1),COMMDWRD+4-&XL.(&XL+1)            GP10081 00180000
+         TR    &OUT.(2*&XL),COMMHXTR                            GP10081 00190000
+         AIF   (T'&FILL EQ 'O').MEND                            GP10065 00200000
+         MVI   &OUT+2*&XL,&FILL                                 GP10065 00210000
+         MEXIT ,                                                GP10081 00220000
+.NOINREG AIF   (T'&XL EQ 'O').DFLT                              GP10065 00230000
+&NM      UNPK  &OUT.(2*&XL+1),&IN.(&XL+1)                       GP10065 00240000
+         TR    &OUT.(2*&XL),COMMHXTR                            GP10081 00250000
+         AIF   (T'&FILL EQ 'O').MEND                            GP10065 00260000
+         MVI   &OUT+2*&XL,&FILL                                 GP10065 00270000
+         MEXIT ,                                                GP10065 00280000
+.DFLT    ANOP  ,                                                GP10065 00290000
+&L       SETC  'L'''                                            GP10065 00300000
+&NM      UNPK  &OUT.(2*&L&IN+1),&IN.(&L&IN+1)                   GP10065 00310000
+         TR    &OUT.(2*&L&IN),COMMHXTR                          GP10081 00320000
+         AIF   (T'&FILL EQ 'O').MEND                            GP10065 00330000
+         MVI   &OUT+2*&L&IN,&FILL                               GP10065 00340000
+.MEND    MEND  ,                                                GP10065 00350000

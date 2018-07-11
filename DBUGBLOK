@@ -1,0 +1,23 @@
+*---------------------------------------------------------------------* 00010000
+*                                                                     * 00020000
+*        DEBUG INTERFACE BLOCK                                        * 00030000
+*                                                                     * 00040000
+*---------------------------------------------------------------------* 00050000
+         MACRO                                                          00060000
+&NAME    DBUGBLOK &TYPE=                                                00070000
+         AIF      ('&TYPE' EQ 'DSECT').DSECT                            00080000
+&NAME    DS       0A                                                    00090000
+         AGO      .NODSECT                                              00100000
+.DSECT   ANOP                                                           00110000
+         AIF      (T'&NAME EQ 'O').NONAME                               00120000
+&NAME    DSECT                                                          00130000
+.NODSECT ANOP                                                           00140000
+DBUGDATA DC    A(0)                DEBUG DATA ADDRESS                   00150000
+DBUGCMD  DC    C' '                COMMAND                              00160000
+$DBUG    EQU   C' '                .. NORMAL DEBUG                      00170000
+$DBUGHD  EQU   C'H'                .. PRINT SUB-HEADING                 00180000
+$DBUGPRT EQU   C'P'                .. PRINT                             00190000
+         MEXIT                                                          00200000
+.NONAME  ANOP                                                           00210000
+         MNOTE    12,'NAME REQUIRED WHEN TYPE=DSECT'                    00220000
+         MEND                                                           00230000

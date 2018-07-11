@@ -1,0 +1,163 @@
+1   I read the article on the disassembler by Alan Field in the
+ February issue of Technical Support.  I have used the disassembler
+ mentioned in the article (from file 217 of the CBT).  There are
+ several things about this disassembler that I thought could be improved.
+ For example, I wanted the disassembler listing to look as much like the
+ original assembler list as possible.  The disassembler did allow DSECTs
+ to be defined, but you had to code statements to do this yourself.
+ Some parameters were entered via the "PARM" on the execute statement,
+ others by SYSIN type statements.  There were some fixed size tables
+ that could fill up.
+0   I wrote a new disassembler, borrowing from the one on the CBT.  The
+ new program produces a listing very similar to assembler output.  DSECTs
+ are defined by using the actual dsect source or macro.  There are no
+ hardcoded fixed size tables that may fill up.  All control parameters
+ are entered via "SYSIN" type statements.  I admitted up front that there
+ would be problems that would be difficult to trouble shoot, so the
+ program has a built in internal trace table.  There turned out to be
+ so many internal control blocks that following the chains in a dump
+ was very time consuming, so I wrote a "debug" program to run the chains
+ and format the data at specific points.
+0   Whereas the "old" disassembler consisted of 3 modules, mine has 13.
+ The individual CSECTs are:
+             DISASM00 - common data and trace table code
+             DISASM01 - mainline
+             DISASM02 - parameter reader/converter
+             DISASM03 - object code reader
+             DISASM04 - ESD data processor
+             DISASM05 - RLD data processor
+             DISASM06 - text printer
+             DISASM07 - assembler interface/dsect interpreter
+             DISASM08 - reference table builder
+             DISASM09 - source code generator
+             DISASMDB - debug
+             DISASMOP - opcode table
+             DISASMPR - printer
+ Altogether the code comes to about 32K.
+0   As in the "old" disassembler, extended mnemonics are used if possible
+ for branch instructions.  SVC's are interpreted (the macro is not re-
+ coded).  Control statements allow the definition of areas that do not
+ contain instructions.  If the DISPUNCH DD is allocated, an 80-byte
+ card type source deck will be produced that may be used as input to the
+ assembler.
+0   Labels generated for the disassembled CSECT have a form PPPPNNNN.
+ If the label precedes an instruction, the PPPP is a 1 to 4 character
+ user supplied prefix.  If the label preceeds a data area, PPPP is the
+ literal "DATA".  NNNN is either the displacement into the CSECT where
+ the label appears or is a sequentially assigned number (0010, 0020,
+ etc).  Sequentially numbered labels may be more desirable if the source
+ is to be modified because the label may no longer be at the same
+ displacement.
+0   If the disassembler can determine a label, it will use it in the
+ generated source.  Instead of a MVC instruction always looking like:
+ "MVC   324(18,R2),21(R3)", it might look like "MVC   FIELDB(18),FIELDA".
+0   ENTRY points will be reproduced from the ESD data.  RLD items will
+ cause an ADCON, VCON, Q, or CXD at the point the RLD item exists.
+ ADCONs will cause a label to be generated at the point referenced by
+ the ADCON.  VCONs and Q type items will have the name inserted:
+ "DC  V(nnnnn)" or "Q(nnnnn)".
+0   I tried to make the program as self documenting and as uncluttered
+ as possible.  By breaking it up into multiple CSECTs functions could
+ be isolated.  This kept base register problems to a minimum and allowed
+ some isolation of testing individual components.
+-                       PROGRAM DESCRIPTION
+   STEP   MODULE
+     1   DISASM01  Acquire trace table storage and initialize the trace
+                   control data in DISASM00.
+     2   DISASM01  Scan the TIOT to determine which DD's are present.
+     3   DISASM01  Verify that all required DD's were present.
+     4   DISASM01  Call the parameter reader, DISASM02.
+     5   DISASM02  Read all control statements.  Each statement is
+                   printed on the DISPRINT listing.  All parameters
+                   set fields or flags in the common module, DISASM00.
+     6   DISASM02  When end-of-file is reached on DISIN, verify that all
+                   required parameters were entered.
+     7   DISASM01  If there were errors detected by DISASM02, an error
+                   message is issued and the program terminates.
+     8   DISASM01  Acquire storage for object module I/O area.
+     9   DISASM01  Call the ojbect module reader, DISASM03.
+    10   DISASM03  Issue a BLDL for the specified module.
+    11   DISASM03  If the BLDL was unsuccessful, interpret the return
+                     A) interpret the BLDL return code
+                     B) print an error message
+                     C) set the abort flag
+                     D) return to mainline
+    12   DISASM03  Interpret data from the directory data (text's TTR,
+                       entry point, module's length, etc).
+    13   DISASM03  Issue a POINT to prepare for reading the module.
+    14   DISASM03  If the POINT was unsuccessful
+                     A) interpret the POINT return code
+                     B) print an error message
+                     C) set the abort flag
+                     D) return to mainline
+    15   DISASM03  Read records from the object module:
+    16   DISASM03  If the record contains
+                     A) CESD records, process them internally.  If this
+                        is the requested CSECT's data, copy the data
+                        into the storage acquired by DISASM04.
+                     B) ESD data, call DISASM04 to process.
+         DISASM04       DISASM04 interprets and prints the ESD data.
+                        ESD info is saved in "ESDDATA" blocks chained
+                        from the common data module, DISASM00.  If the
+                        requested CSECT is found, acquire storage for
+                        text, and set the "CSECT found" flag.
+                     C) RLD data, call DISASM05 to process.
+         DISASM05       DISASM05 interprets and prints RLD data.  RLD
+                        info is saved in "RLDDATA" blocks chained from
+                        the common data module, DISASM00.  DISASM05
+                        verifies that the RLD items are not in an area
+                        defined as data by DATA statements.  If an RLD
+                        item is in a DATA area-
+                             a) print an error message
+                             b) set the abort flag
+                        RLD items are checked to see if they reference
+                        ESD items (like VCONs).  If an RLD item does
+                        reference an ESD entry, the ESD item is linked
+                        to the RLD item so the name can be generated.
+    17   DISASM01  If there were errors detected by DISASM03, DISASM04,
+                   or DISASM05, an error message is issued and the
+                   program terminates.
+    18   DISASM01  Call the object text printer DISASM06.
+    19   DISASM06  Prints the object module in dump type format.
+    20   DISASM01  Call the assembler interface and dsect interpreter,
+                   DISASM07.
+    21   DISASM07  If no assembler input was specified in the DISIN
+                   parameters, issue a message and return to mainline.
+    22   DISASM07  LOAD the assembler, IEV90.
+    23   DISASM07  Link to the assembler.
+    24   DISASM07  Print the assembler return code.
+    25   DISASM07  Read the assembler listing -
+                      A) when a DSECT is detected, add a new DSCTBLOK
+                         to the chain (CSECT's are treated the same
+                         as DSECT's).
+                      B) when a label is detected add it to the label
+                         chain from the current DSECT.
+    26   DISASM08  Chain the USING blocks to the DSECT blocks they
+                   refer to.
+    27   DISASM08  Scan the object code and determine the displacements
+                   where valid instructions occur. Generate DATA blocks
+                   for any areas that do not contain instructions.
+    28   DISASM08  Verify that all BASE and USINGs reference instruction
+                   boundaries.
+    29   DISASM08  Generate LABELs for ENTRY points in the requested
+                   CSECT.
+    30   DISASM08  Generate LABELs for ADCON references.
+    31   DISASM08  Generate the reference table.  If the disassembler
+                   can determine a label in the CSECT or a DSECT,
+                   the "reference" will be the address of the LABEL
+                   block and the displacement from that label.
+    32   DISASM09  Source code generation
+
+
+
+
+
+
+
+
+
+
+
+
+
+

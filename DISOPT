@@ -1,0 +1,155 @@
+.*--------------------------------------------------------------------* 00010000
+.*                                                                    * 00020000
+.*         GLOBAL OPTIONS                                             * 00030000
+.*                                                                    * 00040000
+.*    THESE OPTIONS ALLOW CUSTOMIZED GENERATION OF DISASM.            * 00050000
+.*                                                                    * 00060000
+.*     OPTIONS YOU CAN SET ARE:                                       * 00070000
+.*                                                                    * 00080000
+.*           &TRACE   ON  - ITRACE MACROS WILL GENERATE THE CODE TO   * 00090000
+.*                          CAPTURE THE "ID" AND DATA1/RDATA1 AND     * 00100000
+.*                          DATA2/RDATA2, DISASM01 WILL ACQUIRE AND   * 00110000
+.*                          INITIALIZE THE TRACE TABLE CONTROL DATA   * 00120000
+.*                          IN DISASM00.                              * 00130000
+.*                    OFF - ITRACE MACROS WILL GENERATE NO CODE AT    * 00140000
+.*                          ALL.  DISASM01 WILL NOT ACQUIRE THE       * 00150000
+.*                          TRACE TABLE STORAGE.  GENERATING DISASM   * 00160000
+.*                          WITH &TRACE=OFF WILL REDUCE THE SIZE OF   * 00170000
+.*                          THE MODULE BY ABOUT 2K.                   * 00180000
+.*                                                                    * 00190000
+.*           &TRNBR   SPECIFIES THE NUMBER OF TRACE TABLE ENTRIES.    * 00200000
+.*                                                                    * 00210000
+.*           &MAXLINE SPECIFIES THE DEFAULT LINE COUNT PER PAGE ON    * 00220000
+.*                    DISPRINT AND DISDEBUG.                          * 00230000
+.*                                                                    * 00240000
+.*           &MINLINE SPECIFIES THE MINIMUM NUMBER OF LINES A USER    * 00250000
+.*                    CAN REQUEST VIA THE LINE/LINES/MAXLINES STATE-  * 00260000
+.*                    MENT.                                           * 00270000
+.*                                                                    * 00280000
+.*           &COMLIST ON  - THE COMMON DATA AREA LISTING WILL BE      * 00290000
+.*                          PRINTED ON THE ASSEMBLER LISTING.         * 00300000
+.*                    OFF - THE AREAS MAPPED BY DISASMDA WILL NOT     * 00310000
+.*                          BE PRINTED ON THE ASSEMBLER LISTING.      * 00320000
+.*                    ** NOTE THE COMLIST OPTION DOES NOT APPLY TO    * 00330000
+.*                    ** TO CSECT DISASM00.                           * 00340000
+.*                                                                    * 00350000
+.*                                                                    * 00360000
+.*           &DALIST  ON  - THE AREAS MAPPED BY DISASMDA WILL BE      * 00370000
+.*                          PRINTED ON THE ASSEMBLER LISTING.         * 00380000
+.*                    OFF - THE AREAS MAPPED BY DISASMDA WILL NOT     * 00390000
+.*                          BE PRINTED ON THE ASSEMBLER LISTING.      * 00400000
+.*                                                                    * 00410000
+.*--------------------------------------------------------------------* 00420000
+         MACRO                                                          00430000
+&NAME    DISOPT &COMLIST=OFF,                                          +00440000
+               &DALIST=OFF,                                            +00450000
+               &MAXLINE=59,       (=59 ALLOWS 55 LINES OF TEXT)        +00460000
+               &MINLINE=10,                                            +00470000
+               &TRACE=ON,                                              +00480000
+               &TRNBR=1000                                              00490000
+         GBLA &TRNBRG,&MAXL,&MINL                                       00500000
+         GBLB &MVSXA                                            GP04234 00510000
+         GBLC &TROPT,&DAPRT,&COMPRT                                     00520000
+         LCLA &ERROR                                                    00530000
+&ERROR   SETA 0                                                         00540000
+         AIF  (T'&TRACE EQ 'O').OPT010                                  00550000
+         AIF  ('&TRACE' EQ 'ON').OPT020                                 00560000
+         AIF  ('&TRACE' EQ 'OFF').OPT020                                00570000
+         MNOTE 12,'TRACE MUST BE EITHER -ON- OR -OFF-'                  00580000
+&ERROR   SETA 1                                                         00590000
+         AGO  .OPT030                                                   00600000
+.OPT010  ANOP                                                           00610000
+         MNOTE 12,'TRACE OPTION MUST BE SPECIFIED'                      00620000
+&ERROR   SETA 1                                                         00630000
+         AGO  .OPT030                                                   00640000
+.OPT020  AIF  ('&SYSECT' EQ '').OPT022  AVOID BLANK CSECT               00650000
+         DS   0H                                                        00660000
+.OPT022  ANOP ,                                                         00670000
+&TROPT   SETC '&TRACE'                                                  00680000
+.OPT030  ANOP                                                           00690000
+         AIF  (T'&TRNBR EQ 'O').OPT040                                  00700000
+         AIF  (&TRNBR LT 0).OPT050                                      00710000
+         AIF  (&TRNBR GT 9999).OPT060                                   00720000
+&TRNBRG  SETA &TRNBR                                                    00730000
+         AGO  .OPT070                                                   00740000
+.OPT040  ANOP                                                           00750000
+         MNOTE 12,'TRNBR MUST BE SPECIFIED'                             00760000
+&ERROR   SETA 1                                                         00770000
+         AGO  .OPT070                                                   00780000
+.OPT050  ANOP                                                           00790000
+         MNOTE 12,'TRNBR CANNOT BE LESS THAN ZERO'                      00800000
+&ERROR   SETA 1                                                         00810000
+         AGO  .OPT070                                                   00820000
+.OPT060  ANOP                                                           00830000
+         MNOTE 12,'TRNBR CANNOT BE GREATER THAN 9999'                   00840000
+&ERROR   SETA 1                                                         00850000
+.OPT070  ANOP                                                           00860000
+         AIF  (T'&MAXLINE EQ 'O').OPT080                                00870000
+         AIF  (&MAXLINE LT 0).OPT090                                    00880000
+         AIF  (&MAXLINE GT 9999).OPT100                                 00890000
+&MAXL    SETA &MAXLINE                                                  00900000
+         AGO  .OPT110                                                   00910000
+.OPT080  ANOP                                                           00920000
+         MNOTE 12,'MAXLINE MUST BE SPECIFIED'                           00930000
+&ERROR   SETA 1                                                         00940000
+         AGO  .OPT110                                                   00950000
+.OPT090  ANOP                                                           00960000
+         MNOTE 12,'MAXLINE CANNOT BE LESS THAN 0'                       00970000
+&ERROR   SETA 1                                                         00980000
+         AGO  .OPT110                                                   00990000
+.OPT100  ANOP                                                           01000000
+         MNOTE 12,'MAXLINE CANNOT BE GREATER THAN 9999'                 01010000
+&ERROR   SETA 1                                                         01020000
+.OPT110  ANOP                                                           01030000
+         AIF  (T'&MINLINE EQ 'O').OPT120                                01040000
+         AIF  (&MINLINE LT 0).OPT130                                    01050000
+         AIF  (&MINLINE GT &MAXLINE).OPT140                             01060000
+&MINL    SETA &MINLINE                                                  01070000
+         AGO  .OPT150                                                   01080000
+.OPT120  ANOP                                                           01090000
+         MNOTE 12,'MINLINE MUST BE SPECIFIED'                           01100000
+&ERROR   SETA 1                                                         01110000
+         AGO  .OPT150                                                   01120000
+.OPT130  ANOP                                                           01130000
+         MNOTE 12,'MINLINE CANNOT BE LESS THAN ZERO'                    01140000
+&ERROR   SETA 1                                                         01150000
+         AGO  .OPT150                                                   01160000
+.OPT140  ANOP                                                           01170000
+         MNOTE 12,'MINLINE CANNOT BE GREATER THAN MAXLINE'              01180000
+&ERROR   SETA 1                                                         01190000
+.OPT150  ANOP                                                           01200000
+         AIF  (T'&DALIST EQ 'O').OPT160                                 01210000
+         AIF  ('&DALIST' EQ 'ON').OPT170                                01220000
+         AIF  ('&DALIST' EQ 'OFF').OPT170                               01230000
+         MNOTE 12,'DALIST MUST BE -ON- OR -OFF-'                        01240000
+&ERROR   SETA 1                                                         01250000
+         AGO  .OPT180                                                   01260000
+.OPT160  ANOP                                                           01270000
+         MNOTE 12,'DALIST MUST BE SPECIFIED'                            01280000
+&ERROR   SETA 1                                                         01290000
+         AGO  .OPT180                                                   01300000
+.OPT170  ANOP                                                           01310000
+&DAPRT   SETC '&DALIST'                                                 01320000
+.OPT180  ANOP                                                           01330000
+         AIF  (T'&COMLIST EQ 'O').OPT190                                01340000
+         AIF  ('&COMLIST' EQ 'ON').OPT200                               01350000
+         AIF  ('&COMLIST' EQ 'OFF').OPT200                              01360000
+         MNOTE 12,'COMLIST MUST BE -ON- OR -OFF-'                       01370000
+&ERROR   SETA 1                                                         01380000
+         AGO  .OPT210                                                   01390000
+.OPT190  ANOP                                                           01400000
+         MNOTE 12,'COMLIST MUST BE SPECIFIED'                           01410000
+&ERROR   SETA 1                                                         01420000
+         AGO  .OPT210                                                   01430000
+.OPT200  ANOP                                                           01440000
+&COMPRT  SETC  '&COMLIST'                                               01450000
+.OPT210  ANOP                                                           01460000
+         AIF  (&ERROR EQ 0).EXIT                                        01470000
+         MNOTE 12,'ERRORS IN SPECIFYING OPTIONS'                        01480000
+.EXIT    ANOP                                                           01490000
+         MEND                                                           01500000
+         DISOPT TRACE=ON,                                              +01510000
+               TRNBR=1000,                                             +01520000
+               MAXLINE=100,                                            +01530000
+               MINLINE=10,                                             +01540000
+               DALIST=OFF                                               01550000

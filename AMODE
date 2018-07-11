@@ -1,0 +1,4 @@
+         MACRO ,                                                        00010000
+         AMODE ,                                                        00020000
+.*   DUMMY MACRO CREATED TO SUPPORT ASSEMBLY UNDER HERCULES (XF ASM)    00030000
+         MEND  ,                                                        00040000

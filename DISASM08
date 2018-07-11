@@ -1,0 +1,1028 @@
+DA08     TITLE 'DISASM08 - CSECT LABEL ASSIGNER AND REFERENCE TABLE GEN+00010000
+               ERATOR'                                                  00020000
+* ------------------------------------------------------------------- * 00030000
+*                                                                     * 00040000
+*  MODULE NAME: DISASM08                                              * 00050000
+*                                                                     * 00060000
+*  FUNCTION:                                                          * 00070000
+*   1) Chain the USING blocks to the DSECT blocks they refer to.      * 00080000
+*   2) Scan the object code and                                       * 00090000
+*         A. Determine the displacements where valid instructions     * 00100000
+*            occur.                                                   * 00110000
+*         B. Add DATA blocks to represent any areas that do not       * 00120000
+*            contain valid instructions and are not already defined   * 00130000
+*            by data blocks.                                          * 00140000
+*   3) Verify that all BASE and USINGs reference displacements where  * 00150000
+*      a valid instruction occurs.  This is because a USING or DROP   * 00160000
+*      statement cannot be generated in the middle of an instruction. * 00170000
+*   4) Generate label blocks for entry points that occur within the   * 00180000
+*      csect.  This info comes from the ESD blocks built by module    * 00190000
+*      DISASM04.                                                      * 00200000
+*   5) Generate label blocks for the points referenced by ADCONs.     * 00210000
+*      This info comes from the RLD blocks built by module DISASM05.  * 00220000
+*   6) Scan the object code and generate the REF blocks for data      * 00230000
+*      references.                                                    * 00240000
+*                                                                     * 00250000
+*   The original code changed the end of USING/BASE blocks to the     * 00260000
+*   beginning of a valid instruction. If the range covers a single    * 00270000
+*   instruction, this fails because DA09 does not generate a USING,   * 00280000
+*   but only a DROP. The new code sets the end address to the next    * 00290000
+*   instruction.  BASE/USING address tests were changed to match. GP  * 00300000
+*                                                                     * 00310000
+*   Register R10 was changed to R14 to free a base register for       * 00320000
+*   fixes in logic (bad overlap processing)                     GP10081 00330000
+*                                                                     * 00340000
+* ------------------------------------------------------------------- * 00350000
+         COPY  DISASMGB                                                 00360000
+DISASM08 MODHEAD BASE=(R12,R10)    HOUSEKEEPING                 GP10081 00370000
+         ITRACE ID=ENTRY                                                00380000
+         SPACE 1                                                GP99155 00390000
+* ------------------------------------------------------------------- * 00400000
+*        Chain USING blocks to their related DSECT blocks             * 00410000
+* ------------------------------------------------------------------- * 00420000
+         LA    R3,COMMUSNG   FIRST USING BLOCK'S ADDRESS        GP99155 00430000
+         USING USNGDSCT,R3           DEFINE BASE                        00440000
+LABL0010 ICM   R3,15,USNGNEXT        NEXT USING BLOCK           GP99155 00450000
+         BZ    LABL0090              END OF CHAIN               GP99155 00460000
+         ITRACE ID=FINDDSCT,         STARTING SEARCH FOR A DSECT ENTRY +00470000
+               DATA1=USNGDSNM        .. DSECT'S NAME                    00480000
+         LA    R2,COMMDSCT   FIRST DSECT ENTRY                  GP99155 00490000
+         USING DSCTDSCT,R2           DEFINE BASE                        00500000
+         SPACE 1                                                GP99155 00510000
+LABL0020 ICM   R2,15,DSCTNEXT        NEXT DSECT BLOCK           GP99155 00520000
+         BZ    ERR0010               DSECT NOT FOUND                    00530000
+         ITRACE ID=TESTDSCT,         CHECKING A DSECT ENTRY            +00540000
+               DATA1=DSCTNAME        .. DSECT'S NAME                    00550000
+         CLC   USNGDSNM,DSCTNAME     DSECT FOUND?                       00560000
+         BNE   LABL0020      NO; TRY AGAIN                      GP99155 00570000
+         ITRACE ID=DSCTFND,          DSECT ENTRY HAS BEEN FOUND        +00580000
+               RDATA1=R2             .. DSECT BLOCK'S ADDRESS           00590000
+         ST    R2,USNGDSA            CHAIN DSECT BLOCK TO USING BLOCK   00600000
+         CLC   USNGLBNM,COMMBLKS     LABEL BLANK?                       00610000
+         BE    LABL0070              YES                                00620000
+         LA    R9,DSCTLBA    FIRST LABEL IN THE DSECT           GP99155 00630000
+         USING LABLDSCT,R9           DEFINE BASE                        00640000
+         SPACE 1                                                GP99155 00650000
+LABL0040 ICM   R9,15,LABLNEXT        NEXT LABEL                 GP99155 00660000
+         BZ    LABL0050              NO LABELS                  GP99155 00670000
+         CLC   LABLNAME,USNGLBNM     LABEL LOCATED?                     00680000
+         BE    LABL0060              YES                                00690000
+         B     LABL0040              LOOP                       GP99155 00700000
+         SPACE 1                                                GP99155 00710000
+LABL0050 MVC   EMSG05N,USNGLBNM      COPY LABEL NAME            GP99155 00720000
+         MVC   EMSG05D,USNGDSNM      COPY DSECT NAME                    00730000
+         MVC   PRTDATA(EMSG05L),EMSG05                                  00740000
+         OI    COMMFLAG,$ERROR+$ABORT                                   00750000
+         BAL   R14,PRT0000           PRINT MESSAGE                      00760000
+         B     LABL0010      DO ANOTHER USING                   GP99155 00770000
+         SPACE 1                                                GP99155 00780000
+LABL0060 DS    0H                                                       00790000
+         ST    R9,USNGLBA            SET ASSOCIATED LABEL BLOCK ADDRESS 00800000
+         MVC   USNGDISP,LABLDISP     SET DISP TO LABEL                  00810000
+         B     LABL0010      PROCESS NEXT USING                 GP99155 00820000
+         SPACE 1                                                GP99155 00830000
+LABL0070 DS    0H                                                       00840000
+         ICM   R9,15,DSCTLBA         ANY LABELS?                        00850000
+         BZ    LABL0080              NO                                 00860000
+         ST    R9,USNGLBA            SET ASSOCIATED LABEL BLOCK ADDRESS 00870000
+         XC    USNGDISP,USNGDISP     SET DISP TO ZERO                   00880000
+LABL0080 B     LABL0010      DO ANOTHER USING                   GP99155 00890000
+         SPACE 1                                                GP99155 00900000
+LABL0090 TM    COMMFLAG,$ABORT       SERIOUS ERROR?             GP99155 00910000
+         BO    EXIT0000              YES, STOP NOW              GP99155 00920000
+* ------------------------------------------------------------------- * 00930000
+*        Scan the object code and determine the displacements         * 00940000
+*        to all valid instructions.  This is necessary because        * 00950000
+*        some instructions may reference other instructions to        * 00960000
+*        modify them (like zapping in a length).  If an instruction   * 00970000
+*        references another at other than the opcode address, the     * 00980000
+*        generated label will be 'PRFXNNNN+D'.                        * 00990000
+*                                                                     * 01000000
+*        'DATA' blocks will be generated to indicate areas that do    * 01010000
+*        not have valid opcodes and are not already defined as being  * 01020000
+*        data.                                                        * 01030000
+*                                                                     * 01040000
+*        The hex value for blanks is also a valid opcode, STH.  To    * 01050000
+*        prevent the disassembler from interpreting a string of       * 01060000
+*        blanks as a series of STH's, an additional check was added   * 01070000
+*        for this situation.  Three blanks will not be processed as   * 01080000
+*        an instruction.                                              * 01090000
+*                                                                     * 01100000
+*        Each displacement will be 4-bytes.  Worst case would be a    * 01110000
+*        module that consists of only 2-byte opcodes.  Each entry     * 01120000
+*        will be a 4-byte displacement, so the table's length would   * 01130000
+*        be twice the CSECT's size at most.  Four additional bytes    * 01140000
+*        are added for end of table flag (X'FFFFFFFF').               * 01150000
+* ------------------------------------------------------------------- * 01160000
+         L     R1,COMMCSLN           CSECT'S TOTAL LENGTH               01170000
+         LA    R0,4(R1,R1)           DOUBLE+SPARE FOR END FLAG  GP99140 01180000
+         MVI   COMMFILL,X'FF'  SET FILL BYTE - ALL UNUSED       GP99161 01190000
+         BAL   R14,GETMAIN           ACQUIRE STORAGE FOR DISPLACEMENTS  01200000
+         LR    R9,R1                 INITIALIZE DISP TABLE ADDRESS      01210000
+         ST    R1,COMMDISP           SAVE DISPLACEMENT TABLE'S ADDRESS  01220000
+         MVI   COMMFILL,X'00'  SET FILL BYTE - ALL EMPTY        GP99161 01230000
+         L     R5,COMMTXT            TEXT'S STORAGE ADDRESS             01240000
+         SR    R6,R6                 INITIALIZE DISPLACEMENT            01250000
+         SPACE 1                                                        01260000
+LABL0100 C     R6,COMMCSLN           BEYOND END OF CSECT?               01270000
+         BNL   LABL0230              TEST FOR FINAL DATA BLOCK          01280000
+         ICM   R7,15,COMMDATA        FIRST DATA BLOCK                   01290000
+         BZ    LABL0130              NO DATA BLOCKS                     01300000
+         USING DATADSCT,R7           DEFINE BASE                        01310000
+         ITRACE ID=DATACHK1,         TESTING FOR DATA AREA             +01320000
+               RDATA1=R6             .. CURRENT DISPLACEMENT            01330000
+         SPACE 1                                                        01340000
+LABL0110 CL    R6,DATAEND            TOO HIGH FOR THIS DATA AREA?       01350000
+         BH    LABL0120              YES; TRY AGAIN             GP10081 01360000
+         CL    R6,DATABEGN           DATA AREA BEGINNING DISPLACEMENT?  01370000
+*WRONG*  BL    LABL0120              THIS AREA IS BELOW CURRENT DISP    01380000
+         BL    LABL0130              THIS AREA IS BEYOND DISP   GP10081 01390000
+         BE    LABL0220              DATA AREA FOUND                    01400000
+*OLD*    CL    R6,DATAEND            TOO HIGH FOR THIS DATA AREA?       01410000
+*OLD*    BH    LABL0120              YES                                01420000
+         OC    DATASIZE,DATASIZE     DATA OVER-LAPPING DATA?            01430000
+         BNZ   ERR0060               YES.. INSTRUCTION OVERLAPS DATA    01440000
+         B     ERR0020               INSTRUCTION OVERLAPS DATA          01450000
+         SPACE 1                                                        01460000
+LABL0120 ICM   R7,15,DATANEXT        NEXT DATA BLOCK                    01470000
+         BNZ   LABL0110              LOOP                               01480000
+         SPACE 1                                                        01490000
+LABL0130 EX    R6,EXTM01     IS ADDRESS ODD                     GP99140 01500000
+         BNZ   LABL0200      YES; TOO BAD                       GP99140 01510000
+*OBS*    L     R1,COMMCSLN           CSECT TOTAL LENGTH                 01520000
+*OBS*    SR    R1,R6                 MINUS CURRENT DISPLACEMENT         01530000
+*OBS*    CH    R1,COMMH8             8 OR MORE BYTES LEFT?              01540000
+*OBS*    BL    LABL0135              NO                                 01550000
+*OBS*    CLC   COMMBLKS(6),0(R5)     6 BLANKS IN A ROW?         GP10075 01560000
+*OBS*    BE    LABL0200              YES..(DON'T OVERRUN DATA)  GP10081 01570000
+LABL0135 SR    R8,R8                 CLEAR REGISTER                     01580000
+         ICM   R14,1,0(R5)           INSERT POSSIBLE OPCODE     GP10081 01590000
+         BZ    LABL0200              NOT A VALID OPCODE                 01600000
+         LR    R1,R5         PASS INSTRUCTION ADDRESS           GP99137 01610000
+         BAL   R14,GETOPENT  LOOK IT UP                         GP99137 01620000
+           B   LABL0200        NOT A VALID CODE                 GP99137 01630000
+         CLC   COMMBLKS(3),0(R5)     BLANKS/STH ?               GP10081 01640000
+         BE    LABL0200              TREAT STH 4,0nn(4) AS DATA GP10081 01650000
+         LR    R8,R15        MOVE TO DESIRED REGISTER           GP99137 01660000
+         STH   R0,OPLENGTH   SAVE INSTRUCTION LENGTH            GP99137 01670000
+         USING OPDSECT,R8            DEFINE BASE                        01680000
+         LR    R1,R0                 OPCODE LENGTH              GP99140 01690000
+         AR    R1,R6                 DISPLACEMENT OF END OF INSTR + 1   01700000
+         BCTR  R1,0                  DISPLACEMENT OF END OF INSTR       01710000
+         LTR   R7,R7                 ANY DATA BLOCK ?           GP10081 01720000
+         BZ    LABL0160              NO; SKIP TEST              GP10081 01730000
+         C     R1,DATABEGN           OVERLAPS THIS DATA BLOCK?  GP10081 01740000
+         BNL   LABL0200              YES; DO DATA               GP10081 01750000
+         SPACE 1                                                GP99155 01760000
+LABL0160 C     R1,COMMCSEA           BEYOND END OF CSECT?       GP99140 01770000
+         BNL   LABL0190              NO; PERHAPS INST. IS LAST? GP99140 01780000
+         LR    R1,R0                 OPCODE LENGTH              GP99155 01790000
+         AR    R1,R5                 NEXT OPCODE'S ADDRESS              01800000
+         ICM   R14,1,0(R1)           INSERT POSSIBLE OPCODE     GP99137 01810000
+         BZ    LABL0170              NOT A VALID OPCODE         GP99137 01820000
+         CLC   COMMBLKS(3),0(R1)     BLANKS/STH ?               GP10081 01830000
+         BE    LABL0170              TREAT STH 4,0nn(4) AS DATA GP10081 01840000
+         BAL   R14,GETOPENT  LOOK IT UP                         GP99137 01850000
+           B   LABL0170        NOT A VALID CODE                 GP99137 01860000
+         B     LABL0190      TWO VALID IN A ROW                 GP99137 01870000
+         SPACE 1                                                GP99155 01880000
+*---------------------------------------------------------------------* 01890000
+*   WE FOUND ONE VALID OPCODE FOLLOWED BY DATA. TREAT THE OPCODE AS   * 01900000
+*   DATA UNLESS IT IS AN INSTRUCTION THAT IS EXPECTED TO BE FOLLOWED  * 01910000
+*   BY DATA (B, BR, BAL, BALR, SVC, LPSW). THIS IS SYSTEM DEPENDENT.  * 01920000
+*---------------------------------------------------------------------* 01930000
+LABL0170 ICM   R2,15,DATASIZE        PRIOR DATA AREA?           GP10081 01940000
+         BNZ   LABL0200              YES; TREAT AS MORE DATA    GP10081 01950000
+         TRT   0(1,R5),TRTOLAST      OK OPCODE/DATA SEQUENCE?   GP10081 01960000
+         B     *+4(R2)               BRANCH BY RESULT           GP10081 01970000
+           B   LABL0200              0 - NOT LAST OPCODE        GP10081 01980000
+           B   LABL0190              4 - EXPAND INSTRUCTION     GP10081 01990000
+           B   LABL0180              8 - TEST CC TEST           GP10081 02000000
+*NEXT*     B   LABL0172             12 -  ADDITIONAL TESTING    GP10081 02010000
+LABL0172 CLC   =X'0A03',0(R5)        EXIT SVC ?                 GP10081 02020000
+         BE    LABL0190              YES; EXPAND                GP10081 02030000
+         CLC   =X'0A0D',0(R5)        ABEND/ABDUMP SVC           GP10081 02040000
+         BE    LABL0190              YES; EXPAND                GP10081 02050000
+         B     LABL0200              NO; TREAT AS DATA          GP10081 02060000
+         SPACE 1                                                        02070000
+LABL0180 TM    1(R5),X'F0'           UNCONDITIONAL BRANCH?      GP99155 02080000
+         BNO   LABL0200              NO.. NOT VALID OPCODE      GP99155 02090000
+         SPACE 1                                                        02100000
+LABL0190 BAL   R14,LABL2000          NEW DATA BLOCK IF NEEDED   GP10081 02110000
+         ST    R6,0(,R9)             SAVE VALID DISPLACEMENT    GP99146 02120000
+         LA    R9,4(,R9)             NEXT DISPLACEMENT SLOT             02130000
+         LH    R1,OPLENGTH           INSTRUCTION'S LENGTH               02140000
+         B     LABL0210                                                 02150000
+         SPACE 1                                                        02160000
+LABL0200 LA    R1,1                  NEXT BYTE                          02170000
+         SPACE 1                                                        02180000
+LABL0205 L     R0,DATASIZE           DATA AREA SIZE SO FAR              02190000
+         LTR   R0,R0                 FIRST TIME FOR THIS?       GP08063 02200000
+         BNZ   LABL0208              NO                         GP08063 02210000
+         ST    R6,DATADISP           SAVE STARTING DISPLACEMENT GP08063 02220000
+         SPACE 1                                                        02230000
+LABL0208 AR    R0,R1                 PLUS SKIP AMOUNT           GP08063 02240000
+         ST    R0,DATASIZE           SAVE TOTAL                         02250000
+         SPACE 1                                                        02260000
+LABL0210 AR    R5,R1                 NEXT OBJECT CODE BYTE              02270000
+         AR    R6,R1                 NEXT NEXT DISPLACEMENT             02280000
+         B     LABL0100              LOOP                               02290000
+         SPACE 1                                                        02300000
+LABL0220 BAL   R14,LABL2000          DATA AREA IF NEEDED        GP10081 02310000
+         L     R6,DATAEND            ENDING DISPLACEMENT        GP99146 02320000
+         LA    R6,1(,R6)             NEXT BYTE                          02330000
+         LR    R5,R6                 COPY DISPLACEMENT                  02340000
+         A     R5,COMMTXT            PLUS BASE                          02350000
+         ITRACE ID=DATASKIP,         DISPLACEMENT SKIPPED DUE TO DATA  +02360000
+               RDATA1=R5,            .. NEW TEXT'S ADDRESS             +02370000
+               RDATA2=R6             .. NEW DISPLACEMENT                02380000
+         B     LABL0100              LOOP                               02390000
+         SPACE 1                                                        02400000
+* ------------------------------------------------------------------- * 02410000
+*        Add last data block if necessary                             * 02420000
+* ------------------------------------------------------------------- * 02430000
+LABL0230 BAL   R14,LABL2000          ADD DATA BLOCK             GP10081 02440000
+* ------------------------------------------------------------------- * 02450000
+*        Verify that all BASE and USINGs reference data areas or      * 02460000
+*        instruction boundaries.  This is because DROP and USING      * 02470000
+*        statements cannot be generated in the middle of an           * 02480000
+*        instruction.  Also I will not generate DROPs or USINGs in    * 02490000
+*        data areas (I guess this may cause problems with "S" type    * 02500000
+*        DC instructions).                                            * 02510000
+* ------------------------------------------------------------------- * 02520000
+         LA    R3,COMMBASE   FIRST BASE ENTRY                   GP99155 02530000
+         USING BASEDSCT,R3                                              02540000
+LABL0240 ICM   R3,15,BASENEXT        NEXT BASE BLOCK            GP99155 02550000
+         BZ    LABL0260              NO BASES DEFINED                   02560000
+         MVC   WORKDISP,BASEBEGN     SET BEGINNING DISPLACEMENT         02570000
+         MVC   EMSG03A,BEGNDISP      SET 'BEGINNING' IN MESSAGE         02580000
+         BAL   R2,LABL0300           CHECK BEGINNING DISPLACEMENT       02590000
+         MVC   BASEBEGN,WORKDISP     SET VERIFIED DISPLACEMENT  GP99147 02600000
+         CLC   BASEEND,COMMCSEA      BEYOND END OF CSECT?       GP10066 02610000
+         BNH   LABL0250              NO                                 02620000
+         MVC   BASEEND,COMMCSEA      LIMIT TO CSECT LENGTH      GP10066 02630000
+LABL0250 MVC   WORKDISP,BASEEND      SET ENDING DISPLACEMENT            02640000
+         MVC   EMSG03A,ENDDISP       SET 'ENDING' IN MESSAGE            02650000
+         BAL   R2,LABL0300           CHECK ENDING DISPLACEMENT          02660000
+         MVC   BASEEND,WORKDISP      SET VERIFIED DISPLACEMENT  GP99147 02670000
+         B     LABL0240      LOOP                               GP99155 02680000
+         SPACE 1                                                GP99155 02690000
+LABL0260 LA    R3,COMMUSNG   FIRST USING ENTRY                  GP99155 02700000
+         USING USNGDSCT,R3           DEFINE BASE                        02710000
+LABL0270 ICM   R3,15,USNGNEXT        NEXT USING BLOCK           GP99155 02720000
+         BZ    LABL0290              NO USINGS                          02730000
+         TM    USNGFLAG,$USNGND      DISPLACEMENTS?                     02740000
+         BO    LABL0270              NO                         GP99155 02750000
+         MVC   WORKDISP,USNGBEGN     SET BEGINNING DISPLACEMENT         02760000
+         MVC   EMSG03A,BEGNDISP      SET 'BEGINNING' IN MESSAGE         02770000
+         BAL   R2,LABL0300           CHECK BEGINNING DISPLACEMENT       02780000
+         MVC   USNGBEGN,WORKDISP     SET VERIFIED DISPLACEMENT          02790000
+         MVC   WORKDISP,USNGEND      SET ENDING DISPLACEMENT            02800000
+         MVC   EMSG03A,ENDDISP       SET 'ENDING' IN MESSAGE            02810000
+         BAL   R2,LABL0300           CHECK ENDING DISPLACEMENT          02820000
+         MVC   USNGEND,WORKDISP      SET VERIFIED DISPLACEMENT          02830000
+         B     LABL0270      LOOP                               GP99155 02840000
+         SPACE 1                                                GP99155 02850000
+LABL0290 TM    COMMFLAG,$ERROR       ERROR DETECTED YET?        GP99155 02860000
+         BO    EXIT0000              YES.. STOP                         02870000
+         B     LABL0370                                                 02880000
+         SPACE 1                                                GP99155 02890000
+LABL0300 LA    R7,COMMDATA   FIRST DATA                         GP99155 02900000
+LABL0310 ICM   R7,15,DATANEXT        NEXT DATA BLOCK            GP99155 02910000
+         BZ    LABL0330              NO DATA AREAS                      02920000
+         CLC   WORKDISP,DATABEGN     POSSIBLY IN DATA?                  02930000
+         BL    LABL0310              NO                         GP99155 02940000
+         CLC   WORKDISP,DATAEND      WITHIN DATA?                       02950000
+         BNHR  R2                    YES, DISP IS OK                    02960000
+         B     LABL0310      LOOP                               GP99155 02970000
+         SPACE 1                                                GP99155 02980000
+LABL0330 L     R1,COMMDISP           DISPLACEMENT TABLE ADDRESS GP99155 02990000
+LABL0340 CLC   XFFFF,0(R1)           END OF TABLE REACHED?      GP99155 03000000
+         BE    LABL0360              YES.. INVALID BOUNDARY             03010000
+         CLC   WORKDISP,0(R1)        DISPLACEMENT FOUND?                03020000
+         BER   R2                    YES.. GOOD                         03030000
+         BL    LABL0360              INVALID BOUNDARY                   03040000
+         LA    R1,4(,R1)             NEXT DISPLACEMENT                  03050000
+         B     LABL0340              LOOP                               03060000
+         SPACE 1                                                GP99155 03070000
+LABL0360 L     R14,WORKDISP  SAVE USER'S OFFSET                 GP99147 03080000
+         MVC   EMSG03B,4(R3)         SET BLOCK ID                       03090000
+         SHEX  EMSG03O,WORKDISP   FORMAT OFFSET FOR DISPLAY     GP10081 03100000
+         CLC   EMSG03A,ENDDISP  END OF RANGE TEST?              GP99147 03110000
+         BE    LABL0366                                         GP99147 03120000
+         SH    R1,COMMH4             BACK-UP 1 INSTRUCTION      GP99147 03130000
+LABL0366 MVC   WORKDISP,0(R1)        DISP OF NEXT INSTRUCTION   GP99147 03140000
+         CLI   WORKDISP,X'FF'   END FLAG?                       GP99147 03150000
+         BNE   LABL0368                                         GP99147 03160000
+         MVC   WORKDISP,COMMCSLN  SET END SECTION ADDRESS       GP99147 03170000
+LABL0368 S     R14,WORKDISP     GET NEW ADDRESS                 GP99147 03180000
+         LPR   R14,R14          MAKE IT POSITIVE                GP99147 03190000
+         CH    R14,=H'1'        IF DIFFERENCE IS 0 OR 1, NO MSG GP99147 03200000
+         BNHR  R2               YES; RETURN WITHOUT MESSAGE     GP99147 03210000
+         SHEX  EMSG03N,WORKDISP   FORMAT OFFSET FOR DISPLAY     GP10081 03220000
+         MVC   PRTDATA(EMSG03L),EMSG03                                  03230000
+         BAL   R14,PRT0000           PRINT MESSAGE                      03240000
+         BR    R2                    RETURN                             03250000
+         SPACE 1                                                GP99155 03260000
+* ------------------------------------------------------------------- * 03270000
+*        Generate any labels for ENTRY points within the module       * 03280000
+* ------------------------------------------------------------------- * 03290000
+LABL0370 LA    R4,COMMESD    FIRST ESD ENTRY                    GP99155 03300000
+         USING ESDDATA,R4            DEFINE BASE                        03310000
+LABL0380 ICM   R4,15,ESDNEXT         NEXT ESD ENTRY             GP99155 03320000
+         BZ    LABL0410              NO ESD ENTRIES                     03330000
+         CLI   ESDTYPE,$ESDLR        LABEL?                             03340000
+         BE    LABL0390              YES                                03350000
+         CLI   ESDTYPE,$ESDPC        PRIVATE CODE?                      03360000
+         BNE   LABL0380              NO                         GP99155 03370000
+LABL0390 DS    0H                                                       03380000
+         CLC   ESDADDR,COMMCSAD+1    BELOW REQUESTED CSECT?             03390000
+         BL    LABL0380              YES                        GP99155 03400000
+         CLC   ESDADDR,COMMCSEA+1    ABOVE REQUESTED CSECT?             03410000
+         BH    LABL0380              YES                        GP99155 03420000
+         CLC   ESDNAME,COMMCSNM      CSECT'S NAME?                      03430000
+         BE    LABL0380              YES                        GP99155 03440000
+         SR    R1,R1                 CLEAR REGISTER                     03450000
+         ICM   R1,7,ESDADDR          SYMBOL'S ADDRESS IN THE CSECT      03460000
+         S     R1,COMMCSAD           CONVERT TO DISPLACEMENT            03470000
+         ST    R1,WORKDISP           SET DISPLACEMENT           GP99146 03480000
+         MVC   WORKLABL,ESDNAME      SET LABEL NAME                     03490000
+         MVI   WORKTYPE,$LABLE       LABEL WILL BE FROM AN ESD ENTRY    03500000
+         BAL   R14,LABL1150          ADD LABEL                  GP10081 03510000
+         B     LABL0380      LOOP                               GP99155 03520000
+         SPACE 1                                                GP99155 03530000
+* ------------------------------------------------------------------- * 03540000
+*        Generate labels for ADCON references                         * 03550000
+* ------------------------------------------------------------------- * 03560000
+LABL0410 LA    R7,COMMDATA   FIRST DATA BLOCK                   GP99155 03570000
+LABL0420 ICM   R7,15,DATANEXT        NEXT BLOCK                 GP99155 03580000
+         BZ    LABL0490              NO DATA AREAS                      03590000
+         CLI   DATATYPE,$DATAACN     ADCON W/REFERENCE ?        GP10069 03600000
+         BE    LABL0480      YES; PROCESS                       GP10069 03610000
+LABL0430 CLI   DATAASMT,C'S'  ASSEMBLER S-CON ?                 GP10066 03620000
+         BNE   LABL0420      NO; DO NORMALLY                    GP99179 03630000
+         CLC   =H'2',DATAILEN  LENGTH=2 ?                       GP99179 03640000
+         BNE   LABL0420              NO                         GP99155 03650000
+         L     R5,COMMTXT    GET CSECT ADDRESS                  GP99180 03660000
+         L     R6,DATABEGN   PLUS OFFSET                        GP99180 03670000
+         AR    R5,R6                                            GP99180 03680000
+         TM    0(R5),X'F0'   IS IT ABSOLUTE?                    GP99179 03690000
+         BZ    LABL0420      YES; SAME AS AL2 ALMOST            GP99179 03700000
+* ------------------------------------------------------------------- * 03710000
+*    Resolve S-constant, and create a REF table entry for it.         * 03720000
+* ------------------------------------------------------------------- * 03730000
+         PUSH  USING                                            GP99179 03740000
+         XC    WORKOP1,WORKOP1       CLEAR REFERENCE 1          GP99179 03750000
+         XC    WORKOP2,WORKOP2       CLEAR REFERENCE 2          GP99179 03760000
+         UNPK  WORKBASE,0(1,R5)      CLEAR REGISTER             GP99179 03770000
+         NI    WORKBASE,X'0F'   ISOLATE BASE REGISTER           GP99179 03780000
+         MVC   WORKDISP+2(2),0(R5)   COPY BASE AND DISP         GP99179 03790000
+         NC    WORKDISP,=X'00000FFF' LEAVE ONLY DISPLACEMENT    GP08234 03800000
+         STM   R3,R9,LOCSAVE    SAVE CRITICAL REGISTERS         GP10046 03810000
+         BAL   R14,LABL1000          DETERMINE REFERENCE        GP10081 03820000
+         LM    R3,R9,LOCSAVE    RESTORE CRITICAL REGISTERS      GP10046 03830000
+         ICM   R0,15,WORKREF    DID ANYTHING USEFUL?            GP99180 03840000
+         BZ    LABL0420      NO; IGNORE                         GP99180 03850000
+         ITRACE ID=OP0REF,           ADDRESS LABEL REFERENCE           +03860000
+               DATA1=WORKREF,        .. LABEL BLOCK'S ADDRESS          +03870000
+               DATA2=WORKOPD         .. DISPLACEMENT FROM LABEL GP99179 03880000
+         LA    R0,REFL               SET LENGTH OF REF BLOCK    GP99140 03890000
+         BAL   R14,GETMAIN           ACQUIRE STORAGE FOR NEW REF BLOCK  03900000
+         ITRACE ID=NEWREF,           NEW REFERENCE BLOCK               +03910000
+               RDATA1=R1             .. BLOCK'S ADDRESS         GP99179 03920000
+         USING REFDSCT,R4            DEFINE BASE                GP99179 03930000
+         LA    R15,COMMREF   FIND QUEUE HEAD                    GP99179 03940000
+LABL04LP LR    R4,R15        SAVE THIS ONE                      GP99179 03950000
+         ICM   R15,15,REFNEXT   NEXT?                           GP99179 03960000
+         BZ    LABL04ST      NO; TACK IT AT END                 GP99179 03970000
+         CL    R6,REFDISPI-REFDSCT(,R15)  GOES HERE?            GP99179 03980000
+         BH    LABL04LP      NOT YET                            GP99179 03990000
+         MVC   REFNEXT-REFDSCT(4,R1),REFNEXT  CHAIN IN          GP99179 04000000
+LABL04ST ST    R1,REFNEXT            CHAIN TO PREVIOUS BLOCK    GP99179 04010000
+         LR    R4,R1                 SET BASE                   GP99179 04020000
+         MVC   REFEYE,REF            SET BLOCK ID TO 'REF'      GP99179 04030000
+         MVC   REFOPER1,WORKREF      SET OPERAND 1 REFERENCE ENTRY      04040000
+         MVC   REFDISP1,WORKOPD      SET DISPLACEMENT FROM LABEL        04050000
+         MVC   REFOPCD,=C'DC'        PRESERVE THE OP-CODE       GP99139 04060000
+         ST    R6,REFDISPI           REFERENCING INSTRUCTION'S DISP     04070000
+         B     LABL0420      NOW DO NEXT DATA BLOCK             GP99179 04080000
+         POP   USING                                            GP99179 04090000
+         SPACE 1                                                GP99179 04100000
+LABL0480 XC    WORKDISP(3),WORKDISP  SET BYTES 1-3 TO ZERO      GP99142 04110000
+         L     R1,DATABEGN   DISPLACEMENT TO ADCON              GP99142 04120000
+         A     R1,COMMTXT            PLUS BASE ADDRESS                  04130000
+         L     R15,DATALEN   GET ITEM LENGTH                    GP99142 04140000
+         IC    R15,DATALEN+3                                    GP99142 04150000
+         LA    R14,WORKDISP+4  POINT PAST IT                    GP99142 04160000
+         SR    R14,R15       LESS LENGTH = MOVE DESTINATION     GP99142 04170000
+         BCTR  R15,0         LENGTH FOR EXECUTE                 GP99142 04180000
+         EX    R15,EXMVCWR1                                     GP99142 04190000
+         CLI   DATATYPE,$DATAACN     ADCON TO BE RELATIVIZED?   GP05212 04200000
+         BNE   LABL0485      NO; DO NORMALLY                    GP05212 04210000
+         L     R0,WORKDISP   GET VALUE                          GP10081 04220000
+         SL    R0,COMMCSAD   LESS CSECT START                   GP10081 04230000
+         ST    R0,WORKDISP   RETURN CORRECTED VALUE             GP10081 04240000
+         EX    R15,EXMVCWR2  UPDATE STORAGE                     GP10072 04250000
+LABL0485 NI    WORKDISP,X'7F'  KILL AM31 BIT                    GP99142 04260000
+         MVI   WORKTYPE,$LABLR       LABEL WILL BE FOR RLD DATA         04270000
+         ST    R7,SAVERLD            SAVE DATA RLD ITEM'S ADDRESS       04280000
+         BAL   R14,LABL1040          ADD LABEL                  GP10081 04290000
+         L     R7,SAVERLD            RESTORE DATA RLD ITEM'S ADDRESS    04300000
+         MVC   DATALBA,WORKREF       SET LABEL BLOCK ADDRESS            04310000
+         MVC   DATALBD,WORKOPD       SET DISPLACEMENT FROM LABEL        04320000
+         B     LABL0420      LOOP                               GP99155 04330000
+         SPACE 1                                                GP99155 04340000
+LABL0490 MVI   WORKTYPE,C' '         CLEAR LABEL TYPE           GP99155 04350000
+* ------------------------------------------------------------------- * 04360000
+*        Scan the object code and generate the reference table        * 04370000
+* ------------------------------------------------------------------- * 04380000
+         LA    R4,COMMREF            REFERENCE TABLE ANCHOR             04390000
+         USING REFDSCT,R4            DEFINE BASE                        04400000
+         L     R5,COMMTXT            TEXT'S STORAGE ADDRESS             04410000
+         SR    R6,R6                 INITIALIZE DISPLACEMENT            04420000
+LABL0500 DS    0H                                                       04430000
+         CL    R6,COMMCSLN           BEYOND END OF CSECT?       GP99155 04440000
+         BNL   LABL3000              YES, QUIT                          04450000
+         ICM   R7,15,COMMDATA        FIRST DATA BLOCK                   04460000
+         BZ    LABL0530              NOT WITHIN ANY DATA AREA           04470000
+         ITRACE ID=DATACHK2,         TESTING FOR DATA AREA             +04480000
+               RDATA1=R6             .. CURRENT DISPLACEMENT            04490000
+LABL0510 DS    0H                                                       04500000
+         CL    R6,DATABEGN           TOO LOW FOR THIS DATA AREA?        04510000
+         BL    LABL0520              YES                                04520000
+         CL    R6,DATAEND            TOO HIGH FOR THIS DATA AREA?       04530000
+         BH    LABL0520              YES                                04540000
+         ITRACE ID=DATA1             CURRENTLY IN A DATA AREA           04550000
+         L     R6,DATAEND            ENDING DISPLACEMENT        GP99146 04560000
+         LA    R6,1(,R6)             NEXT POSSIBLE INSTRUCTION DISP     04570000
+         LR    R5,R6                 COPY DISPLACEMENT                  04580000
+         A     R5,COMMTXT            PLUS BASE ADDRESS                  04590000
+         ITRACE ID=NEWADDR1,         NEW ADDRESS AND DISP SET          +04600000
+               RDATA1=R5,            .. CURRENT TEXT ADDRESS           +04610000
+               RDATA2=R6             .. CURRENT DISPLACEMENT            04620000
+         B     LABL0500              LOOP                               04630000
+LABL0520 DS    0H                                                       04640000
+         ICM   R7,15,DATANEXT        NEXT DATA BLOCK                    04650000
+         BNZ   LABL0510              LOOP                               04660000
+LABL0530 DS    0H                                                       04670000
+         EX    R6,EXTM01     IS ADDRESS ODD                     GP99140 04680000
+         BNZ   ERR0070       YES; TOO BAD                       GP99140 04690000
+         ITRACE ID=NEWOPCDE,         CHECKING AN OPCODE                +04700000
+               DATA1=(R5),           .. CURRENT OPCODE                 +04710000
+               RDATA2=R6             .. CURRENT DISPLACEMENT            04720000
+*HUH*    ICM   R8,15,0(R8)           OPCODE ENTRY ADDRESS       GP08063 04730000
+*HUH*    BZ    ERR0030               NOT A VALID OPCODE         GP08063 04740000
+         LR    R1,R5         COPY TO PARM REGISTER              GP99137 04750000
+         BAL   R14,GETOPENT  LOOK IT UP                         GP99137 04760000
+           B   ERR0030         HUH? IT WAS VALID BEFORE         GP99137 04770000
+         LR    R8,R15                                           GP99137 04780000
+         STH   R0,OPLENGTH   SAVE LENGTH                        GP99137 04790000
+         USING OPDSECT,R8            DEFINE BASE                        04800000
+         ITRACE ID=OPCODE,           VALID OPCODE                      +04810000
+               RDATA1=R8,            .. OPCODE TABLE ENTRY'S ADDRESS   +04820000
+               DATA2=(R8)            .. PART OF THE OPCODE TABLE ENTRY  04830000
+         TM    OPFLAGS,$OPREF        REFERENCE GENERATED?               04840000
+         BNO   LABL0560              NO                                 04850000
+* ------------------------------------------------------------------- * 04860000
+*        Determine if operand 1 references a known BASE, DATA, or     * 04870000
+*        USING (DSECT).                                               * 04880000
+* ------------------------------------------------------------------- * 04890000
+         XC    WORKOP1,WORKOP1       CLEAR REFERENCE 1                  04900000
+         XC    WORKOP2,WORKOP2       CLEAR REFERENCE 2                  04910000
+         SR    R1,R1                 CLEAR REGISTER                     04920000
+         IC    R1,2(,R5)             INSERT BASE AND PART OF DISP       04930000
+         SRA   R1,4          SHIFT BASE TO LOW ORDER BITS       GP06260 04940000
+         BNZ   LABL0537      NON-ZERO; USE IT                   GP06260 04950000
+         CLI   OPFORM,$OPRX  IS THIS AN RX INSTRUCTION ?        GP06260 04960000
+         BE    LABL0536      YES; TEST FURTHER                  GP10031 04970000
+         CLI   OPFORM,$OPRXA   IS IT RXA ?                      GP10031 04980000
+         BNE   LABL0537      NO; HANDS OFF                      GP10031 04990000
+LABL0536 TM    COMMOPFG,$OFIXSWP   DOES USER WANT IT SWAPPED?   GP08063 05000000
+         BZ    LABL0537      NO; LEAVE AS IS                    GP08063 05010000
+         ICM   R1,8,1(R5)    GET INDEX REGISTER BYTE            GP06260 05020000
+         SLL   R1,4          KILL R1                            GP06260 05030000
+         STCM  R1,8,WORKDISP  TEMP SAVE                         GP06260 05040000
+         SRL   R1,28         RIGHT JUSTIFY                      GP06260 05050000
+         MVZ   2(1,R5),WORKDISP  AND 'FIX' SOURCE               GP06260 05060000
+         NI    1(R5),X'F0'   MAKE INDEX INTO BASE REGISTER      GP06260 05070000
+LABL0537 STC   R1,WORKBASE           SAVE BASE REG              GP06260 05080000
+         MVC   WORKDISP+2(2),2(R5)   COPY BASE AND DISP                 05090000
+         NC    WORKDISP,=X'00000FFF' LEAVE ONLY DISPLACEMENT    GP08234 05100000
+         BAL   R14,LABL1000          DETERMINE REFERENCE        GP10081 05110000
+         ITRACE ID=OP1REF,           OPERAND 1'S LABEL REFERENCE       +05120000
+               DATA1=WORKREF,        .. LABEL BLOCK'S ADDRESS          +05130000
+               DATA2=WORKOPD         .. DISPLACEMENT FROM LABEL         05140000
+         MVC   WORKOP1,WORKREF       SAVE OPERAND 1 REFERENCE           05150000
+         MVC   WORKOPD1,WORKOPD      SAVE DISPLACEMENT FROM LABEL       05160000
+         CLI   OPFORM,$OPSS1         TWO ADDRESS FORMAT?        GP10031 05170000
+         BL    LABL0550              NO                         GP10031 05180000
+         CLI   OPFORM,$OPSSE         TWO ADDRESS FORMAT?        GP10031 05190000
+         BH    LABL0550              NO                         GP10031 05200000
+* ------------------------------------------------------------------- * 05210000
+*        Determine if operand 2 references a known BASE, DATA, or     * 05220000
+*        USING (DSECT).                                               * 05230000
+* ------------------------------------------------------------------- * 05240000
+LABL0540 DS    0H                                                       05250000
+         SR    R1,R1                 CLEAR REGISTER                     05260000
+         IC    R1,4(,R5)             INSERT BASE AND PART OF DISP       05270000
+         SRL   R1,4          SHIFT BASE TO LOW ORDER BITS               05280000
+         STC   R1,WORKBASE           SAVE BASE REG                      05290000
+         MVC   WORKDISP+2(2),4(R5)   COPY BASE AND DISP                 05300000
+         NC    WORKDISP,=X'00000FFF' LEAVE ONLY DISPLACEMENT    GP08234 05310000
+         BAL   R14,LABL1000          DETERMINE REFERENCE        GP10081 05320000
+         ITRACE ID=OP2REF,           OPERAND 2'S LABEL REFERENCE       +05330000
+               DATA1=WORKREF,        .. LABEL BLOCK'S ADDRESS          +05340000
+               DATA2=WORKOPD         .. DISPLACEMENT FROM LABEL         05350000
+         MVC   WORKOP2,WORKREF       SAVE OPERAND 2 REFERENCE           05360000
+         MVC   WORKOPD2,WORKOPD      SAVE DISPLACEMENT FROM LABEL       05370000
+LABL0550 DS    0H                                                       05380000
+         OC    WORKOP1(8),WORKOP1    BOTH REFERENCES ZERO?              05390000
+         BZ    LABL0560              YES                                05400000
+         LA    R0,REFL               SET LENGTH OF REF BLOCK    GP99140 05410000
+         BAL   R14,GETMAIN           ACQUIRE STORAGE FOR NEW REF BLOCK  05420000
+         ITRACE ID=NEWREF,           NEW REFERENCE BLOCK               +05430000
+               RDATA1=R1             .. BLOCK'S ADDRESS                 05440000
+         LA    R15,COMMREF   FIND QUEUE HEAD                    GP99179 05450000
+LABL05LP LR    R4,R15        SAVE THIS ONE                      GP99179 05460000
+         ICM   R15,15,REFNEXT   NEXT?                           GP99179 05470000
+         BZ    LABL05ST      NO; TACK IT AT END                 GP99179 05480000
+         CL    R6,REFDISPI-REFDSCT(,R15)  GOES HERE?            GP99179 05490000
+         BH    LABL05LP      NOT YET                            GP99179 05500000
+         MVC   REFNEXT-REFDSCT(4,R1),REFNEXT  CHAIN IN          GP99179 05510000
+LABL05ST ST    R1,REFNEXT            CHAIN TO PREVIOUS BLOCK    GP99180 05520000
+         LR    R4,R1                 SET BASE                           05530000
+         MVC   REFEYE,REF            SET BLOCK ID TO 'REF'              05540000
+         MVC   REFOPER1,WORKOP1      SET OPERAND 1 REFERENCE ENTRY      05550000
+         MVC   REFOPER2,WORKOP2      SET OPERAND 2 REFERENCE ENTRY      05560000
+         MVC   REFDISP1,WORKOPD1     SET DISPLACEMENT FROM LABEL        05570000
+         MVC   REFDISP2,WORKOPD2     SET DISPLACEMENT FROM LABEL        05580000
+         MVC   REFOPCD,0(R5)         PRESERVE THE OP-CODE       GP99139 05590000
+         ST    R6,REFDISPI           REFERENCING INSTRUCTION'S DISP     05600000
+LABL0560 DS    0H                                                       05610000
+         AH    R5,OPLENGTH           NEXT INSTRUCTION'S ADDRESS         05620000
+         AH    R6,OPLENGTH           NEXT INSTRUCTION'S DISPLACEMENT    05630000
+         B     LABL0500                                                 05640000
+* ------------------------------------------------------------------- * 05650000
+*                                                                     * 05660000
+*        Determine if base register is referencing a known BASE,      * 05670000
+*        DATA area, or DSECT.  The base register has been isolated    * 05680000
+*        in field 'WORKBASE'.                                         * 05690000
+*                                                                     * 05700000
+*        If a reference is found, 'WORKREF'  will be set to the       * 05710000
+*        'LABEL' block assigned to that location.  If no LABEL can    * 05720000
+*        determined, 'WORKREF' will be set to zero.                   * 05730000
+*                                                                     * 05740000
+*        R14 is the return address.                                   * 05750000
+*                                                                     * 05760000
+* ------------------------------------------------------------------- * 05770000
+LABL1000 ST    R14,RETSAV2                                      GP10081 05780000
+         ITRACE ID=FINDLABL,         ATTEMPTING TO FIND A LABEL        +05790000
+               RDATA1=(R6),          .. INSTRUCTION'S DISPLACEMENT     +05800000
+               RDATA2=(R5)           .. INSTRUCTION                     05810000
+         XC    WORKREF,WORKREF       ASSUME NO VALID REFERENCE          05820000
+         ITRACE ID=SRCHBASE          SEARCHING BASE ENTRIES             05830000
+         ICM   R3,15,COMMBASE        FIRST BASE ENTRY                   05840000
+         USING BASEDSCT,R3           DEFINE BASE                        05850000
+         BZ    LABL1200              NOT REFERENCING A KNOWN BASE       05860000
+LABL1010 CLC   WORKBASE,BASEREG      CORRECT REGISTER?                  05870000
+         BNE   LABL1020              NO                                 05880000
+         CL    R6,BASEBEGN           TOO LOW?                   GP99146 05890000
+         BL    LABL1020              YES                                05900000
+         CL    R6,BASEEND            TOO HIGH?                  GP99146 05910000
+*FAILS*  BNH   LABL1030              THIS IS A DEFINED BASE     GP99147 05920000
+         BL    LABL1030              THIS IS A DEFINED BASE     GP99147 05930000
+LABL1020 ICM   R3,15,BASENEXT        NEXT BASE                          05940000
+         BNZ   LABL1010              LOOP                       GP10081 05950000
+         B     LABL1200              NOT BASED                  GP10081 05960000
+         SPACE 1                                                        05970000
+LABL1030 ITRACE ID=BASEFND,          BASE REFERENCE FOUND              +05980000
+               RDATA1=R3,            .. BASE FOR REFERENCE             +05990000
+               DATA2=BASEBEGN        .. A PORTION OF THE ENTRY          06000000
+         L     R1,BASEDISP           DISPLACEMENT TO BASE       GP99146 06010000
+         A     R1,WORKDISP           PLUS DISPLACEMENT FROM BASE        06020000
+         ST    R1,WORKDISP           SAVE TOTAL DISPLACEMENT    GP99146 06030000
+         L     R14,RETSAV2                                      GP10081 06040000
+         SPACE 1                                                GP99162 06050000
+LABL1040 XC    WORKOPD,WORKOPD       CLEAR DISPLACEMENT FROM LABEL      06060000
+         ST    R14,RETSAV2           SAVE RETURN ADDRESS        GP10081 06070000
+         LA    R7,COMMDATA   FIRST DATA ENTRY                   GP99162 06080000
+LABL1050 ICM   R7,15,DATANEXT        NEXT DATA BLOCK            GP99162 06090000
+         BZ    LABL1090              NOT IN A DATA AREA                 06100000
+         CLC   WORKDISP,DATABEGN     TOO LOW?                           06110000
+         BL    LABL1050              YES                        GP99162 06120000
+         CLC   WORKDISP,DATAEND      TOO HIGH?                          06130000
+         BH    LABL1050              YES; TRY ANOTHER           GP99162 06140000
+* ------------------------------------------------------------------- * 06150000
+*         DATA area referenced                                        * 06160000
+* ------------------------------------------------------------------- * 06170000
+LABL1070 ITRACE ID=DATAREF,          DATA REFERENCE FOUND              +06180000
+               RDATA1=R7,            .. BASE FOR REFERENCE             +06190000
+               DATA2=DATABEGN        .. A PORTION OF THE ENTRY          06200000
+         MVC   WORKLABL,DATA         SET NAME TO 'DATA    '             06210000
+         XC    WORKOPD,WORKOPD       ASSUME NO DISPLACEMENT             06220000
+         TM    DATATYPE,X'10'     ATOMIC DATUM ?                GP10066 06230000
+         BZ    LABL1080             NO; SUBDIVISION LEGAL       GP10066 06240000
+* ------------------------------------------------------------------- * 06250000
+*         Item referenced is an RLD item (ADCON, VCON, Q, or CXD).    * 06260000
+*         RLD items cannot be sub-divided (we cannot generate         * 06270000
+*         a label in the middle of a four byte ADCON for example).    * 06280000
+*         The reference will be changed so the label will be defined  * 06290000
+*         at the beginning of the RLD and a displacement from the     * 06300000
+*         label will be returned in WORKOPD.                          * 06310000
+* ------------------------------------------------------------------- * 06320000
+         L     R0,WORKDISP           DISPLACEMENT               GP99146 06330000
+         L     R1,DATABEGN           DISPLACEMENT               GP99146 06340000
+         ST    R1,WORKDISP           CHANGE TO DATA ORIGIN      GP99146 06350000
+         SR    R0,R1                 MINUS ORIGIN                       06360000
+         ST    R0,WORKOPD            DISPLACEMENT FROM LABEL    GP99146 06370000
+LABL1080 DS    0H                                                       06380000
+         CLI   WORKTYPE,$LABLR       LABEL FOR AN RLD REFERENCE?        06390000
+         BE    LABL1152              YES                        GP10081 06400000
+         MVI   WORKTYPE,$LABLD       DATA LABEL                         06410000
+         B     LABL1152                                         GP10081 06420000
+* ------------------------------------------------------------------- * 06430000
+*         CSECT reference from a defined BASE                         * 06440000
+* ------------------------------------------------------------------- * 06450000
+LABL1090 DS    0H                                                       06460000
+         ITRACE ID=CSECTREF,         DATA REFERENCE FOUND              +06470000
+               RDATA1=R3,            .. BASE FOR REFERENCE             +06480000
+               DATA2=BASEBEGN        .. A PORTION OF THE ENTRY          06490000
+         CLI   WORKTYPE,$LABLR       WORKING ON A RLD ITEM?             06500000
+         BE    LABL1100              YES                                06510000
+         MVI   WORKTYPE,$LABLI       INSTRUCTION LABEL                  06520000
+LABL1100 DS    0H                                                       06530000
+         MVC   WORKLABL,DATA         SET LABEL PREFIX           GP99162 06540000
+         SR    R15,R15               CLEAR REGISTER                     06550000
+         ICM   R15,3,COMMPFXL        PREFIX'S LENGTH                    06560000
+         BZ    LABL1120      PREFIX NOT DEFINED; LEAVE AS DATA  GP99162 06570000
+         MVC   WORKLABL,CHARZERO     SET NAME TO '0000'         GP99162 06580000
+         BCTR  R15,0                 FOR EXECUTE                        06590000
+         EX    R15,LABLBMVC          SET LABEL PREFIX                   06600000
+LABL1120 SR    R15,R15                                          GP99162 06610000
+         L     R1,COMMDISP           DISPLACEMENT TABLE ADDRESS         06620000
+LABL1130 DS    0H                                                       06630000
+         CLC   XFFFF,0(R1)           END OF TABLE?                      06640000
+         BE    LABL1140              YES                                06650000
+         CLC   WORKDISP,0(R1)        DISPLACEMENT FOUND?                06660000
+         BE    LABL1152              YES                        GP10081 06670000
+         BL    LABL1140              ONE TOO FAR                        06680000
+         LR    R15,R1                                           GP99162 06690000
+         LA    R1,4(,R1)             NEXT DISPLACEMENT                  06700000
+         B     LABL1130              LOOP                               06710000
+LABL1140 LTR   R1,R15        GET PRIOR ADDRESS                  GP99162 06720000
+         BZ    LABL1990      NONE; NO VALID LABEL               GP10081 06730000
+         L     R0,WORKDISP           DISPLACEMENT TO DATA REFERENCED    06740000
+         S     R0,0(,R1)             MINUS DISPLACEMENT TO LABEL        06750000
+         ST    R0,WORKOPD            SET DISPLACEMENT FROM LABEL        06760000
+         MVC   WORKDISP,0(R1)        SET DISPLACEMENT TO PREV INSTR     06770000
+         B     LABL1152              SKIP RETURN SAVE           GP10081 06780000
+* ------------------------------------------------------------------- * 06790000
+*         Determine where this LABEL goes in the CSECT LABEL chain    * 06800000
+* ------------------------------------------------------------------- * 06810000
+LABL1150 ST    R14,RETSAV2           SAVE RETURN ADDRESS        GP10081 06820000
+LABL1152 ITRACE ID=ADDLABEL,         CSECT REFERENCE                   +06830000
+               DATA1=WORKDISP        .. DISPLACEMENT REFERENCED         06840000
+         LA    R3,COMMLABL           FORWARD POINTER'S ADDRESS          06850000
+         ICM   R9,15,COMMLABL        FIRST CSECT LABEL                  06860000
+         USING LABLDSCT,R9           DEFINE BASE                        06870000
+         BZ    LABL1170              INSERT ON END OF CHAIN             06880000
+LABL1160 DS    0H                                                       06890000
+         CLC   LABLDISP,WORKDISP     TEST DISPLACEMENT                  06900000
+*OLD*    BE    LABL1190              DUPLICATE                          06910000
+         BH    LABL1170              INSERT NEW NAME HERE               06920000
+         BL    LABL1162              TRY AGAIN                  GP10012 06930000
+         CLI   WORKTYPE,$LABLE       ESD, RLD, ETC. ?           GP10012 06940000
+         BNE   LABL1190              NO; SKIP DUPLICATE         GP10012 06950000
+         B     LABL1170              YES; EXPAND DUPLICATE LBL  GP10012 06960000
+LABL1162 LA    R3,LABLNEXT           CURRENT BLOCK'S FWD POINTER ADDR   06970000
+         ICM   R9,15,LABLNEXT        NEXT CSECT LABEL                   06980000
+         BNZ   LABL1160              LOOP                               06990000
+* ------------------------------------------------------------------- * 07000000
+*         A new CSECT LABEL needs to be generated                     * 07010000
+* ------------------------------------------------------------------- * 07020000
+LABL1170 LA    R0,LABLL                                         GP99140 07030000
+         BAL   R14,GETMAIN           ACQUIRE STORAGE FOR NEW LABL BLOCK 07040000
+         ITRACE ID=NEWLABL,          NEW CSECT LABEL                   +07050000
+               RDATA1=R1,            .. BLOCK'S ADRESS                 +07060000
+               DATA2=WORKDISP        .. LABEL'S DISPLACEMENT            07070000
+         ST    R1,LABLNEXT-LABLDSCT(,R3) PREVIOUS BLOCK'S FWD POINTER   07080000
+         ST    R9,LABLNEXT-LABLDSCT(,R1) NEXT BLOCK'S ADDRESS           07090000
+         LR    R9,R1                 SET BASE                           07100000
+         MVI   LABLSRCE,C' '   SHOW SUPPLIED BY PROGRAM         GP99139 07110000
+         MVC   LABLEYE,LABL          SET BLOCK ID                       07120000
+         CLI   WORKTYPE,$LABLE       ESD LABEL?                         07130000
+         BE    LABL1180              YES                                07140000
+         TM    COMMFLAG,$SEQLABL     SEQUENTIAL LABELS?                 07150000
+         BO    LABL1180              YES.. SUFFIX WILL BE CREATED LATER 07160000
+         SHEX  WORKLABL+4,WORKDISP+2,2,FILL=  CONVERT ONLY      GP10081 07170000
+LABL1180 DS    0H                                                       07180000
+         CLI   LABLSRCE,C' '    USER SUPPLIED LABEL?            GP99139 07190000
+         BH    LABL1182      YES; DON'T MESS WITH IT            GP99139 07200000
+         MVC   LABLNAME,WORKLABL     SET LABEL'S NAME                   07210000
+LABL1182 MVC   LABLDISP,WORKDISP     SET DISPLACEMENT           GP99139 07220000
+         MVC   LABLTYPE,WORKTYPE     SET LABEL TYPE                     07230000
+LABL1190 DS    0H                                                       07240000
+         ST    R9,WORKREF            SET REFERENCE TO THIS LABEL        07250000
+         CLI   LABLTYPE,$LABLD       LABEL TYPE CURRENTLY 'DATA'?       07260000
+         BE    LABL1990              YES                                07270000
+         CLI   WORKTYPE,$LABLI       WAS REQUEST FOR INSTRUCTION LABEL? 07280000
+         BNE   LABL1990              NO                                 07290000
+         CLI   LABLSRCE,C' '    USER SUPPLIED LABEL?            GP99139 07300000
+         BH    LABL1990      YES; DON'T MESS WITH IT            GP99139 07310000
+         MVC   LABLNAME(4),WORKLABL  CHANGE PREFIX                      07320000
+         B     LABL1990                                                 07330000
+LABLBMVC MVC   WORKLABL(0),COMMPFX   SET PREFIX                         07340000
+* ------------------------------------------------------------------- * 07350000
+*         No defined CSECT reference was found, try a DSECT           * 07360000
+* ------------------------------------------------------------------- * 07370000
+LABL1200 ITRACE ID=SRCHDSCT          SEARCHING DSECT ENTRIES            07380000
+         ICM   R3,15,COMMUSNG        FIRST USING BLOCK                  07390000
+         USING USNGDSCT,R3           DEFINE BASE                        07400000
+LABL1210 DS    0H                                                       07410000
+         BZ    LABL1990              NOT REFERENCING A DSECT            07420000
+         CLC   WORKBASE,USNGBASE     CORRECT REGISTER?                  07430000
+         BNE   LABL1220              NO                                 07440000
+         TM    USNGFLAG,$USNGND      DISPLACEMENTS ON USING STATEMENT?  07450000
+         BO    LABL1230              NO                                 07460000
+         CL    R6,USNGBEGN           TOO LOW?                   GP99146 07470000
+         BL    LABL1220              YES                                07480000
+         CL    R6,USNGEND            TOO HIGH?                  GP99146 07490000
+*FAILS*  BNH   LABL1230              NO, DSECT REFERENCE LOCATED        07500000
+         BL    LABL1230              NO, DSECT REFERENCE LOCATED        07510000
+LABL1220 DS    0H                                                       07520000
+         ICM   R3,15,USNGNEXT        NEXT USING BLOCK                   07530000
+         B     LABL1210              LOOP                               07540000
+LABL1230 DS    0H                                                       07550000
+         L     R2,USNGDSA            ASSOCIATED DSECT BLOCK'S ADDRESS   07560000
+         ITRACE ID=DSCTFND,          DSECT REFERENCE                   +07570000
+               RDATA1=R3,            .. USING BLOCK'S ADDRESS          +07580000
+               RDATA2=R2             .. DSECT BLOCK'S ADDRESS           07590000
+         LA    R9,DSCTLBA    FIRST LABEL BLOCK'S ADDRESS        GP99162 07600000
+         L     R0,USNGDISP           SET OFFSET INTO DSECT      GP99146 07610000
+         SR    R15,R15                                          GP99162 07620000
+         SR    R14,R14       LOOK FOR BEST FIT                  GP03064 07630000
+LABL1240 ICM   R9,15,LABLNEXT        NEXT LABEL                 GP99162 07640000
+         BZ    LABL1250              NO VALID LABEL KNOWN       GP99162 07650000
+         L     R1,LABLDISP           DISPLACEMENT OF LABEL      GP99146 07660000
+         SR    R1,R0                 MINUS DISPLACEMENT TO LABEL        07670000
+         BM    LABL1240      IGNORE IF UNUSABLE                 GP03064 07680000
+         C     R1,WORKDISP           DISPLACEMENTS MATCH?       GP99146 07690000
+         BH    LABL1240      NOT YET                            GP99162 07700000
+         CR    R1,R14        BEST FIT YET ?                     GP03064 07710000
+*OLD*    BNH   LABL1240        NO; IGNORE                       GP03064 07720000
+         BL    LABL1240        NO; IGNORE                       GP08234 07730000
+         LR    R14,R1        SAVE FIT                           GP03064 07740000
+         LR    R15,R9        SAVE THE ONE WE HIT                GP99162 07750000
+         B     LABL1240      TRY FOR A CLOSER ONE               GP99162 07760000
+LABL1250 LTR   R9,R15        DID WE FIND A MATCH?               GP99162 07770000
+         BZ    LABL1990      NO; JUST RETURN                    GP99162 07780000
+         ITRACE ID=LABLFND,          LABEL WITHIN THE DSECT FOUND      +07790000
+               RDATA1=R9,            .. LABEL BLOCK'S ADDRESS          +07800000
+               DATA2=LABLNAME        .. LABEL                           07810000
+         L     R0,WORKDISP           DISPLACEMENT FROM INSTRUCTION      07820000
+         S     R0,LABLDISP           DISPLACEMENT FROM LABEL    GP03064 07830000
+         A     R0,USNGDISP           DISPLACEMENT FROM DSECT    GP03064 07840000
+         ST    R0,WORKOPD            SAVE DISPLACEMENT FROM THE LABEL   07850000
+         ST    R9,WORKREF            LABEL BLOCK'S ADDRESS              07860000
+LABL1990 L     R14,RETSAV2                                      GP10081 07870000
+         BR    R14                   RETURN                     GP10081 07880000
+         SPACE 1                                                GP99155 07890000
+* ------------------------------------------------------------------- * 07900000
+*                                                                     * 07910000
+*        Add DATA blocks                                              * 07920000
+*                                                                     * 07930000
+*        R14 is the return address                                    * 07940000
+*                                                                     * 07950000
+* ------------------------------------------------------------------- * 07960000
+LABL2000 OC    DATASIZE,DATASIZE     ANY DATA                   GP99155 07970000
+         BZR   R14                   NO DATA                    GP10081 07980000
+         ST    R14,RETSAV2           SAVE RETURN ADDRESS        GP10081 07990000
+         LA    R7,COMMDATA           ANCHOR'S ADDRESS           GP99155 08000000
+LABL2010 LR    R2,R7         PRESERVE INSERTION POINT           GP99155 08010000
+         ICM   R7,15,DATANEXT        NEXT DATA BLOCK'S ADDRESS  GP99155 08020000
+         BZ    LABL2020              NO DATA AREAS                      08030000
+         CLC   DATABEGN,DATADISP     DOES IT GO HERE?                   08040000
+         BNH   LABL2010      NOT YET; LOOP                      GP99155 08050000
+         SPACE 1                                                GP99155 08060000
+LABL2020 LA    R0,DATAL                                         GP99140 08070000
+         BAL   R14,GETMAIN           ACQUIRE STORAGE FOR NEW DATA BLOCK 08080000
+         ITRACE ID=NEWDATA,          NEW BLOCK DATA BLOCK              +08090000
+               RDATA1=R1             .. BLOCK'S ADDRESS                 08100000
+         ST    R1,0(,R2)             CHAIN PREVIOUS BLOCK TO NEW        08110000
+         ST    R7,DATANEXT-DATADSCT(,R1)  CHAIN NEXT BLOCK TO NEW BLOCK 08120000
+         LR    R7,R1                 SET BASE                           08130000
+         MVC   DATAEYE,DATA          SET BLOCK IDENTIFIER               08140000
+         MVC   DATABEGN,DATADISP     STARTING DISPLACEMENT              08150000
+         LR    R1,R6                 CURRENT DISPLACEMENT               08160000
+         BCTR  R1,0                                             GP99154 08170000
+         C     R1,COMMCSEA           BEYOND END OF CSECT?       GP10066 08180000
+         BNH   LABL2030              NO                         GP99154 08190000
+         L     R1,COMMCSEA           LIMIT TO CSECT LENGTH      GP10066 08200000
+LABL2030 DS    0H                                                       08210000
+         ST    R1,DATAEND            ENDING DISPLACEMENT        GP99146 08220000
+         S     R1,DATABEGN           STARTING DISPLACEMENT              08230000
+         LA    R1,1(,R1)             PLUS 1                             08240000
+         ST    R1,DATALEN            DATA AREA SIZE             GP99146 08250000
+         XC    DATASIZE,DATASIZE     CLEAR DATA SKIPPED                 08260000
+         XC    DATADISP,DATADISP     CLEAR STARTING DISPLACEMENT        08270000
+         MVI   DATATYPE,$DATAINT     INTERNALLY DETECTED DATA           08280000
+         MVC   DATANAME,COMMBLKS     INITIALIZE NAME                    08290000
+         L     R14,RETSAV2                                      GP10081 08300000
+         BR    R14                                              GP10081 08310000
+         SPACE 1                                                GP99155 08320000
+* ------------------------------------------------------------------- * 08330000
+*                                                                     * 08340000
+*        If sequential LABELs are desired, run the LABEL chain and    * 08350000
+*        set the suffix in the non-ESD LABELs.                        * 08360000
+*                                                                     * 08370000
+* ------------------------------------------------------------------- * 08380000
+LABL3000 DS    0H                                                       08390000
+         TM    COMMFLAG,$SEQLABL     SEQUENTIALLY NUMBERED LABELS?      08400000
+         BNO   EXIT0000              NO                                 08410000
+         LA    R9,COMMLABL   FIRST LABEL                        GP99155 08420000
+         ITRACE ID=SEQNBR                                               08430000
+LABL3010 ICM   R9,15,LABLNEXT        NEXT LABEL BLOCK           GP99155 08440000
+         BZ    EXIT0000              NO LABELS TO NUMBER        GP99155 08450000
+         CLI   LABLTYPE,$LABLE       ESD TYPE LABEL?                    08460000
+         BE    LABL3010              YES, DON'T MODIFY IT       GP99155 08470000
+         CLI   LABLSRCE,C' '    USER SUPPLIED LABEL?            GP99139 08480000
+         BH    LABL3010      YES; DON'T MESS WITH IT            GP99139 08490000
+         AP    LABLNBR,P10           ADD TO LABEL COUNTER               08500000
+         MVC   EDITWORK,EDITWORD     INITIALIZE WITH EDIT WORD          08510000
+         ED    EDITWORK,LABLNBR      EDIT LABEL NUMBER                  08520000
+         MVC   LABLNAME+4(4),EDITWORK+2                                 08530000
+         B     LABL3010      LOOP                               GP99155 08540000
+         SPACE 2                                                GP99155 08550000
+ERR0010  DS    0H                                                       08560000
+         MVC   EMSG01NM,USNGDSNM     SET DSECT'S NAME                   08570000
+         MVC   PRTDATA(EMSG01L),EMSG01                                  08580000
+         B     ERRPRINT      SET FLAGS AND EXIT                 GP99155 08590000
+         SPACE 1                                                GP99155 08600000
+*---------------------------------------------------------------------* 08610000
+*   DATE (60) OR INSTRUCTION (20) OVERLAP WITH DATA DEFINITION        * 08620000
+*---------------------------------------------------------------------* 08630000
+ERR0060  MVC   PRTDATA+EMSG02C-EMSG02(10),=CL10' DATA AREA'     GP10075 08640000
+         B     ERR0025       GO TO COMMON                       GP10075 08650000
+         SPACE 1                                                GP99155 08660000
+ERR0020  MVC   PRTDATA+EMSG02C-EMSG02(11),=CL11'INSTRUCTION'    GP10075 08670000
+ERR0025  OC    PRTDATA(EMSG02L),EMSG02      COMPLETE MESSAGE    GP10075 08680000
+         SHEX  PRTDATA+EMSG02A-EMSG02,DATABEGN   START OFFSET   GP10081 08690000
+         SHEX  PRTDATA+EMSG02B-EMSG02,DATAEND    END OFFSET     GP10081 08700000
+         SHEX  PRTDATA+EMSG02D-EMSG02,(R6),4  CURRENT ADDRESS   GP10081 08710000
+         MVC   COMMDWRD(4),0(R5)                 TEXT           GP10081 08720000
+         SHEX  PRTDATA+EMSG02E-EMSG02,COMMDWRD,4     TEXT       GP10081 08730000
+         B     ERRPRINT      SET FLAGS AND EXIT                 GP99155 08740000
+         SPACE 1                                                GP99155 08750000
+ERR0030  DS    0H                                                       08760000
+         MVC   PRTDATA(EMSG04L),EMSG04                                  08770000
+         ST    R6,TRDATA2    SAVE FOR FORMATTING                GP08063 08780000
+         SHEX  PRTDATA+EMSG04O-EMSG04,TRDATA2,4  CURRENT ADDR   GP10081 08790000
+         B     ERRPRINT      SET FLAGS AND EXIT                 GP99155 08800000
+         SPACE 1                                                GP99155 08810000
+ERR0040  DS    0H                                                       08820000
+         MVC   PRTDATA(EMSG06L),EMSG06                                  08830000
+         B     ERRPRINT      SET FLAGS AND EXIT                 GP99155 08840000
+         SPACE 1                                                GP99155 08850000
+ERR0070  DS    0H                                                       08860000
+         MVC   PRTDATA(EMSG09L),EMSG09                                  08870000
+ERRPRINT OI    COMMFLAG,$ERROR+$ABORT                           GP99155 08880000
+         BAL   R14,PRT0000           PRINT ERROR MESSAGE                08890000
+         B     EXIT0000              AND EXIT                           08900000
+         SPACE 1                                                GP99155 08910000
+PRT0000  ST    R14,RETSAVE           SAVE RETURN ADDRESS        GP10081 08920000
+         TM    COMMFLAG,$ERROR       ERROR MESSAGE?             GP99132 08930000
+         BNZ   PRT0005               YES; PRINT IT              GP99132 08940000
+         TM    PRINTFG1,$PFLBL       PRINT LABEL DATA ?         GP99132 08950000
+         BNZ   PRT0005               YES                        GP99132 08960000
+         BAL   R14,PRINTCLR          JUST CLEAR                 GP99132 08970000
+         B     PRT0990               JUST RETURN                GP10081 08980000
+PRT0005  TM    LOCFLAG,LFINIT  FIRST TIME DONE?                 GP99138 08990000
+         BNZ   PRT0010                                          GP99147 09000000
+         OI    LOCFLAG,LFINIT  FIRST TIME DONE                  GP99138 09010000
+         MVC   COMMSUBH(L'SUBHEAD),SUBHEAD                      GP99139 09020000
+         LA    R1,L'SUBHEAD          SUBHEADING LENGTH          GP99139 09030000
+         STH   R1,COMMSUBL           SET LENGTH                 GP99139 09040000
+         MVI   COMMSUBL,X'FF'        SET NON-CENTERED INDICATOR GP99139 09050000
+         MVI   PRTCMD,$PRTSUBH       SET COMMAND                GP99139 09060000
+         L     R15,APR       GET PRINTER ADDRESS                GP99147 09070000
+         LA    R1,PRTBLOK    GET REQUEST BLOCK                  GP99147 09080000
+         BALR  R14,R15       CALL PRINTER; DON'T CLEAR PRTDATA  GP99147 09090000
+PRT0010  BAL   R14,PRINTREC                                     GP99138 09100000
+PRT0990  L     R14,RETSAVE                                      GP10081 09110000
+         BR    R14                   RETURN                     GP10081 09120000
+         SPACE 2                                                        09130000
+EXIT0000 ITRACE ID=EXIT                                                 09140000
+         L     R13,4(,R13)           RESTORE REGISTER 13                09150000
+         LM    R14,R12,12(R13)       RESTORE ALL OTHER REGISTERS        09160000
+         SR    R15,R15               GIVE GOOD RETURN CODE              09170000
+         BR    R14                   RETURN TO CALLER                   09180000
+EXTM01   TM    =X'01',*-*    TEST FOR ODD ADDRESS               GP99140 09190000
+EXMVCWR1 MVC   0(0,R14),0(R1)  MOVE TEXT TO WORKDISP            GP99142 09200000
+EXMVCWR2 MVC   0(0,R1),0(R14)  UPDATE TEXT FROM WORKDISK        GP10072 09210000
+         SPACE 2                                                        09220000
+         LTORG                                                          09230000
+*---------------------------------------------------------------------* 09240000
+*                                                                     * 09250000
+*              WORK AREAS                                             * 09260000
+*                                                                     * 09270000
+*---------------------------------------------------------------------* 09280000
+LOCSAVE  DC    9A(0)                                            GP10046 09290000
+RETSAVE  DC    A(0)                  R14 SAVER                  GP10081 09300000
+RETSAV2  DC    A(0)                  R14 SAVER                  GP10081 09310000
+WORKOP1  DC    A(0)                  OPERAND 1 REFERENCE                09320000
+WORKOP2  DC    A(0)                  OPERAND 2 REFERENCE                09330000
+WORKREF  DC    A(0)                  REFERENCED LABEL BLOCK             09340000
+SAVERLD  DC    A(0)                  SAVED RLD DATA ITEM ADDRESS        09350000
+WORKOPD  DC    A(0)                  DISPLACEMENT FROM LABEL            09360000
+WORKOPD1 DC    A(0)                  DISPLACEMENT FROM LABEL (OPER 1)   09370000
+WORKOPD2 DC    A(0)                  DISPLACEMENT FROM LABEL (OPER 2)   09380000
+WORKDISP DC    A(0)                  DISPLACEMENT FROM WORK BASE        09390000
+DATADISP DC    A(0)                  STARTING DISPLACEMENT              09400000
+DATASIZE DC    A(0)                  SIZE OF CURRENT DATA AREA          09410000
+OPLENGTH DC    H'1'                  LENGTH OF CURRENT INSTRUCTION      09420000
+LABLNBR  DC    PL3'0'                COUNTER FOR SEQUENTIAL LABELS      09430000
+P10      DC    P'10'                 CONSTANT                           09440000
+EDITWORK DC    X'F02020202020'       EDIT WORK AREA                     09450000
+EDITWORD DC    X'F02020202020'       CONSTANT                           09460000
+DSECTOFF DC    XL2'00'               DISPLACEMENT TO LABEL IN DSECT     09470000
+WORKLABL DC    CL9' '                TEMP LABEL NAME                    09480000
+WORKBASE DC    X'00'                 BASE FOR CURRENT OPERAND           09490000
+WORKTYPE DC    C' '                  LABEL TYPE BEING CREATED           09500000
+REF      DC    CL8'REF'                                                 09510000
+ESD      DC    CL8'ESD '                                                09520000
+DATA     DC    CL8'DATA'                                                09530000
+LABL     DC    CL8'LABL'                                                09540000
+CHARZERO DC    CL4'0000'                                                09550000
+XFFFF    DC    X'FFFFFFFF'                                              09560000
+LOCFLAG  DC    X'00'         LOCAL FLAG                         GP99147 09570000
+LFINIT   EQU   X'80'           PRINT INIT FLAG                  GP99147 09580000
+SUBHEAD  DC    C' LABEL PROCESSING'                             GP99147 09590000
+BEGNDISP DC    CL09'BEGINNING'                                          09600000
+ENDDISP  DC    CL09'ENDING   '                                          09610000
+EMSG01   DC    C'DISASM0801E DSECT '                                    09620000
+EMSG01NM DC    CL08' '                                                  09630000
+         DC    C' IS NOT PRESENT, BUT IS REFERENCED ON A USING STATEMEN+09640000
+               T'                                                       09650000
+EMSG01L  EQU   *-EMSG01                                                 09660000
+EMSG02   DC    C'DISASM0802E DATA/FILLER '                      GP10075 09670000
+EMSG02A  DC    CL8' ',C' TO '                                   GP10075 09680000
+EMSG02B  DC    CL8' '                                           GP10075 09690000
+         DC    C' CONFLICTS WITH '                              GP10075 09700000
+EMSG02C  DC    CL11' ',C' AT '                                  GP10075 09710000
+EMSG02D  DC    CL8' ',C' : '                                    GP10081 09720000
+EMSG02E  DC    CL8' '                                           GP10081 09730000
+EMSG02L  EQU   *-EMSG02                                                 09740000
+EMSG03   DC    C'DISASM0803W '                                          09750000
+EMSG03A  DC    CL9' '                                                   09760000
+         DC    C' DISPLACEMENT IN A '                                   09770000
+EMSG03B  DC    CL8' '                                                   09780000
+         DC    C' BLOCK IS CHANGED FROM '                               09790000
+EMSG03O  DC    CL8' '                                                   09800000
+         DC    C' TO '                                                  09810000
+EMSG03N  DC    CL8' '                                                   09820000
+         DC    C' TO REFERENCE AN INSTRUCTION BOUNDARY'                 09830000
+EMSG03L  EQU   *-EMSG03                                                 09840000
+EMSG04   DC    C'DISASM0804E INVALID OPCODE DURING REFERENCE TABLE GENE+09850000
+               RATION'                                                  09860000
+         DC    C'  OFFSET '                                     GP08063 09870000
+EMSG04O  DC    CL8' '                                           GP08063 09880000
+EMSG04L  EQU   *-EMSG04                                                 09890000
+EMSG05   DC    C'DISASM0805E LABEL '                                    09900000
+EMSG05N  DC    CL8' '                                                   09910000
+         DC    C' IS NOT IN DSECT '                                     09920000
+EMSG05D  DC    CL8' '                                                   09930000
+         DC    C' AS REQUESTED IN A USING STATEMENT'                    09940000
+EMSG05L  EQU   *-EMSG05                                                 09950000
+EMSG06   DC    C'DISASM0806E LABEL NOT FOUND IN DSECT DURING REFERENCE +09960000
+               TABLE GENERATION'                                        09970000
+EMSG06L  EQU   *-EMSG06                                                 09980000
+EMSG09   DC    C'DISASM0809E ATTEMPT TO LOCATE AN INSTRUCTION ON AN ODD+09990000
+                DISPLACEMENT BOUNDARY'                                  10000000
+EMSG09L  EQU   *-EMSG09                                                 10010000
+         SPACE 2                                                GP10081 10020000
+*---------------------------------------------------------------------* 10030000
+*   OPCODES THAT PRECEDE DATA: 4-UNCOND 8-F BR 12-TEST                * 10040000
+*---------------------------------------------------------------------* 10050000
+TRTOLAST DC    256X'0'       NON-TERMINAL                       GP10081 10060000
+         ORG   TRTOLAST+X'05'                                   GP10081 10070000
+         DC    X'04'         BALR                               GP10081 10080000
+         ORG   TRTOLAST+X'07'                                   GP10081 10090000
+         DC    X'08'         BCR                                GP10081 10100000
+         ORG   TRTOLAST+X'0A'                                   GP10081 10110000
+         DC    X'0C'         SVC                                GP10081 10120000
+         ORG   TRTOLAST+X'45'                                   GP10081 10130000
+         DC    X'04'         BAL                                GP10081 10140000
+         ORG   TRTOLAST+X'47'                                   GP10081 10150000
+         DC    X'08'         BC                                 GP10081 10160000
+         ORG   TRTOLAST+X'82'                                   GP10081 10170000
+         DC    X'04'         LPSW                               GP10081 10180000
+         ORG   ,                                                GP10081 10190000
+         SPACE 2                                                        10200000
+         COPY  DISASMDA                                                 10210000
+*---------------------------------------------------------------------* 10220000
+*                                                                     * 10230000
+*              COMMON DATA MAP                                        * 10240000
+*                                                                     * 10250000
+*---------------------------------------------------------------------* 10260000
+DISASM00 DISASMCM TYPE=DSECT                                            10270000
+         END  DISASM08                                                  10280000

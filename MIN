@@ -1,0 +1,30 @@
+         MACRO ,                                                        00010000
+&NM      MIN   &R,&A,&TYPE=                                      85195  00020000
+.********************************************************************** 00030000
+.*   COMPARE A REGISTER WITH A SECOND OPERAND (REGISTER OR STORAGE)   * 00040000
+.*   AND PLACE OR LEAVE THE ARITHMETICALLY SMALLER VALUE IN THAT      * 00050000
+.*   REGISTER.                                                        * 00060000
+.*                                                                    * 00070000
+.*   SPECIFY TYPE=H FOR HALF-WORD STORAGE; OTHERWISE USES C/BNH/L     * 00080000
+.*   SPECIFY TYPE=E AND TYPE=D FOR SINGLE AND DOUBLE FLOATING         * 00090000
+.********************************************************************** 00100000
+         LCLA  &I                                                       00110000
+         LCLC  &SUF                                             GP04234 00120000
+         AIF   ('&TYPE' EQ 'F' OR '&TYPE' EQ 'A').NOSUF         GP04234 00130000
+&SUF     SETC  '&TYPE'                                          GP04234 00140000
+.NOSUF   ANOP  ,                                                GP04234 00150000
+&I       SETA  &SYSNDX                                                  00160000
+         AIF   (K'&A LT 3).STORAGE                                      00170000
+         AIF   ('&A'(1,1) NE '(' OR '&A'(K'&A,1) NE ')').STORAGE        00180000
+         AIF   ('&A'(2,1) EQ '(' OR '&A'(K'&A-1,1) EQ ')').STORAGE      00190000
+&NM      C&SUF.R &R,&A(1)                                               00200000
+         BNH   ZZZZ&I                                                   00210000
+         L&SUF.R &R,&A(1)                                               00220000
+         AGO   .LABEL                                                   00230000
+.STORAGE ANOP  ,                                                        00240000
+&NM      C&SUF &R,&A                                                    00250000
+         BNH   ZZZZ&I                                                   00260000
+         L&SUF &R,&A                                                    00270000
+.LABEL   ANOP  ,                                                        00280000
+ZZZZ&I   DS    0H                                                       00290000
+.MEND    MEND  ,                                                        00300000

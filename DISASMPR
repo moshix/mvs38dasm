@@ -1,0 +1,328 @@
+DAPR     TITLE 'DISASMPR PRINTER MODULE'                                00010000
+*---------------------------------------------------------------------* 00020000
+*                                                                     * 00030000
+*  Module name: DISASMPR - Printing module                            * 00040000
+*                                                                     * 00050000
+*  Function:                                                          * 00060000
+*   DISASM was written in multiple CSECTs to keep any one module from * 00070000
+*   being excessively large and avoid some base register concerns due * 00080000
+*   to size, and to functionally divide up the over-all logic.  Since * 00090000
+*   printing was to be necessary from many modules, it seemed best to * 00100000
+*   have a separate print module.  All printing except DISDEBUG is    * 00110000
+*   done here.                                                        * 00120000
+*                                                                     * 00130000
+*   The interface block is PRTBLOK (here referenced as PRMBLOK)       * 00140000
+*                                                                     * 00150000
+*   NOTE: All ITRACE statements removed to prevent abend. This print  * 00160000
+*   routine is called by DISASM01 to print the trace table.           * 00170000
+*                                                                     * 00180000
+* ------------------------------------------------------------------- * 00190000
+         COPY  DISASMGB                                                 00200000
+         LCLC  &DAY,&DAM,&DAD     DATE COMPONENTS               GP10058 00210000
+DISASMPR MODHEAD ,           ENTRY HOUSEKEEPING                 GP99140 00220000
+         LR    R10,R1                COPY PARM BLOCK ADDRESS            00230000
+         USING PRMBLOK,R10           DEFINE PARAMETER BLOCK BASE        00240000
+         CLI   PRMCMD,$PRMCLS        CLOSE FILES?               GP99138 00250000
+         BE    PRT0300               YES                                00260000
+         TM    DCBOFLGS-IHADCB+DISPRINT,DCBOFOPN   IS PRINT FILE OPEN?  00270000
+         BO    PRT0010               YES                                00280000
+         DEVTYPE DISPRINT+DCBDDNAM-IHADCB,LINEWORK              GP10047 00290000
+         MVC   MAXLRECL,LINEWORK     COPY INFO FOR OPEN         GP10047 00300000
+         OPEN  (DISPRINT,OUTPUT)     OPEN DISPRINT                      00310000
+         TM    DCBOFLGS-IHADCB+DISPRINT,DCBOFOPN   IS IT OPEN NOW?      00320000
+         BO    PRT0010               YES                        GP99138 00330000
+         ABEND 1403,DUMP     OOPS?                              GP99138 00340000
+         SPACE 1                                                        00350000
+PRT0010  DS    0H                                                       00360000
+         CLI   PRMCMD,$PRMHEAD       PRINT HEADING?             GP99138 00370000
+         BE    PRT0100               YES                                00380000
+         CLI   PRMCMD,$PRMSUBH       PRINT SUB-HEADING?         GP99138 00390000
+         BE    PRT0110               YES                                00400000
+         CLI   PRMCMD,$PRMPRT        PRINT DATA?                GP99138 00410000
+         BE    PRT0020               YES                                00420000
+         ABEND 3211,DUMP,,USER          ABEND                           00430000
+         SPACE 2                                                        00440000
+* ------------------------------------------------------------------- * 00450000
+*    PROCESS SINGLE PRINT LINE                                        * 00460000
+* ------------------------------------------------------------------- * 00470000
+PRT0020  LA    R3,1          SET FOR SINGLE LINE                GP10047 00480000
+         CLI   PRMCC,C' '            SINGLE SPACE?              GP99138 00490000
+         BE    PRT0030               YES                                00500000
+         LA    R3,2          DOUBLE-SPACE                       GP10047 00510000
+         CLI   PRMCC,C'0'            DOUBLE SPACE               GP99138 00520000
+         BE    PRT0030               YES                                00530000
+         LA    R3,3          TRIPLE-SPACE                       GP10047 00540000
+         CLI   PRMCC,C'-'            TRIPLE SPACE?              GP99132 00550000
+         BE    PRT0030               YES                        GP99132 00560000
+         SR    R3,R3         OVERPRINT?                         GP10047 00570000
+         CLI   PRMCC,C'+'            OVERPRINT ?                GP99132 00580000
+         BE    PRT0030               YES                        GP99132 00590000
+         LA    R3,1000       FORCE NEW PAGE                     GP10047 00600000
+         CLI   PRMCC,C'1'            NEW PAGE REQUEST?          GP99141 00610000
+         BE    PRT0035               YES; DO IT                 GP99141 00620000
+         LA    R3,1          ELSE CLOBBER                       GP10047 00630000
+         MVI   PRMCC,C' '            CHANGE UNKNOWN TO SINGLE   GP99132 00640000
+PRT0030  CVD   R3,LINEWORK                                      GP10047 00650000
+         AP    LINEWORK,LINECT       NEW LINE COUNT                     00660000
+         CP    LINEWORK,COMMMAXL     WILL PAGE OVERFLOW?                00670000
+         BNH   PRT0040               NO                                 00680000
+PRT0035  BAL   R9,PRT0200            PRINT HEADING              GP99141 00690000
+         MVI   PRMCC,C' '    KILL USER'S REQUEST; MAKE REGULAR  GP99139 00700000
+         LA    R3,1                                                     00710000
+PRT0040  CVD   R3,LINEWORK                                      GP10047 00720000
+         AP    LINECT,LINEWORK       NEW LINE COUNT             GP10047 00730000
+         LA    R0,L'PRMCC+L'PRMDATA                             GP10047 00740000
+         LA    R1,PRMCC           PRINT LINE W/CC               GP10047 00750000
+         BAL   R14,MSG#PUT           PRINT                      GP10047 00760000
+         MVI   PRMCC,C' '            INTIALIZE PRINT LINE       GP10047 00770000
+*CALLER* MVC   PRMDATA,PRMCC                                    GP10047 00780000
+         B     PRT9900               EXIT                               00790000
+* ------------------------------------------------------------------- * 00800000
+*             FORCED HEADINGS                                         * 00810000
+* ------------------------------------------------------------------- * 00820000
+PRT0100  DS    0H                                                       00830000
+         BAL   R9,PRT0200            PRINT HEADING                      00840000
+         B     PRT9900               AND EXIT                           00850000
+* ------------------------------------------------------------------- * 00860000
+*             FORCED SUB-HEADINGS                                     * 00870000
+* ------------------------------------------------------------------- * 00880000
+PRT0110  DS    0H                                                       00890000
+         ZAP   LINEWORK,=P'20'  ALLOWANCE FOR TEXT AND STUFF    GP99138 00900000
+         AP    LINEWORK,LINECT  PLUS CURRENT                    GP99138 00910000
+         CP    LINEWORK,COMMMAXL  WILL IT FIT?                  GP99138 00920000
+         BH    PRT0100          NO; FORCE A NEW PAGE            GP99138 00930000
+         BAL   R9,PRT0210            PRINT HEADING                      00940000
+         B     PRT9900               AND EXIT                           00950000
+* ------------------------------------------------------------------- * 00960000
+*             PRINT HEADING                                           * 00970000
+* ------------------------------------------------------------------- * 00980000
+PRT0200  MVI   HEADING,C'1'          RESTORE ASA EJECT          GP10047 00990000
+         AP    PAGECT,P1             ADD 1 TO PAGE COUNT                01000000
+         MVC   HEADPAGE,PAGEEDWD     SET EDIT WORD                      01010000
+         ED    HEADPAGE,PAGECT       EDIT PAGE NUMBER                   01020000
+         LA    R0,L'HEADING                                     GP10047 01030000
+         LA    R1,HEADING                                       GP10047 01040000
+         BAL   R14,MSG#PUT   WRITE HEADLINE                     GP10047 01050000
+         ZAP   LINECT,P1             SET LINE COUNT TO 1                01060000
+PRT0210  DS    0H                                                       01070000
+         SR    R1,R1                 CLEAR REGISTER                     01080000
+         ICM   R1,1,COMMSUBL+1       SUBHEADING LENGTH                  01090000
+         BZ    PRT0240               NO SUB-HEADING             GP99139 01100000
+         LA    R2,SUBHWORK           LEFT JUSTIFIED SUBHEAD     GP10047 01110000
+         CLI   COMMSUBL,X'FF'        NON-CENTERED HEADING?              01120000
+         BE    PRT0220               YES                                01130000
+         LA    R2,L'SUBHWORK         WORK AREA SIZE                     01140000
+         SR    R2,R1                 MINUS SUBHEADING LENGTH            01150000
+         SRL   R2,1                  DIVIDED BY 2                       01160000
+         MVI   SUBHWORK,C'-'         INITIALIZE WITH HYPHEN             01170000
+         MVC   SUBHWORK+1(L'SUBHWORK-1),SUBHWORK                        01180000
+         LA    R2,SUBHWORK(R2)       ADDRESS FOR CENTERED SUB-HEADING   01190000
+PRT0220  DS    0H                                                       01200000
+         BCTR  R1,0                  MINUS 1                            01210000
+         EX    R1,EXMVCSUB           MOVE SUBHEAD               GP10047 01220000
+PRT0230  MVI   SUBHCC,C'0'   RESTORE DOUBLE-SPACE               GP99138 01230000
+         LA    R0,L'SUBHEAD                                     GP10047 01240000
+         LA    R1,SUBHEAD                                       GP10047 01250000
+         BAL   R14,MSG#PUT   WRITE HEADLINE                     GP10047 01260000
+         AP    LINECT,=P'2'          ADD 2 TO LINE COUNT                01270000
+PRT0240  MVI   SUBHCC,C' '           CLEAR WORK AREA            GP10047 01280000
+         MVC   SUBHWORK,SUBHCC       CLEAR ALL                  GP10047 01290000
+         LA    R0,L'SUBHEAD                                     GP10047 01300000
+         LA    R1,SUBHEAD                                       GP10047 01310000
+         BAL   R14,MSG#PUT   WRITE HEADLINE                     GP10047 01320000
+         AP    LINECT,=P'1'          ADD 1 TO LINE COUNT                01330000
+         BR    R9                                                       01340000
+* ------------------------------------------------------------------- * 01350000
+*             CLOSE PRINTER                                           * 01360000
+* ------------------------------------------------------------------- * 01370000
+PRT0300  TM    DCBOFLGS-IHADCB+DISPRINT,DCBOFOPN   PRINTER OPEN?        01380000
+         BNO   PRT9900               NO.. EXIT                          01390000
+         CLOSE DISPRINT              CLOSE PRINTER                      01400000
+         FREEPOOL DISPRINT           AAND RELEASE BUFFERS       GP10047 01410000
+* ------------------------------------------------------------------- * 01420000
+*             EXIT                                                    * 01430000
+* ------------------------------------------------------------------- * 01440000
+PRT9900  DS    0H                                                       01450000
+         L     R13,4(,R13)           RESTORE REGISTER 13                01460000
+         LM    R14,R12,12(R13)       RESTORE ALL OTHER REGISTERS        01470000
+         SR    R15,R15               GIVE GOOD RETURN CODE              01480000
+         BR    R14                   RETURN TO CALLER                   01490000
+EXMVCSUB MVC   0(0,R2),COMMSUBH      COPY SUBHEADING            GP10047 01500000
+         SPACE 2                                                        01510000
+* ------------------------------------------------------------------- * 01520000
+*    PRINT PROCESSING ROUTINE                                         * 01530000
+* ------------------------------------------------------------------- * 01540000
+         PUSH  USING                                            GP10047 01550000
+MSG#PUT  STM   R0,R15,MRSAVE                                    GP10047 01560000
+         LA    R8,DISPRINT                                      GP10047 01570000
+         USING IHADCB,R8                                        GP10047 01580000
+         TM    DCBOFLGS,DCBOFOPN                                GP10047 01590000
+         BNO   MRRET                RETURN IF NO MESSAGE FILE   GP10047 01600000
+MRTEST   LR    R4,R1         PASSED TEXT ADDRESS                GP10047 01610000
+         LTR   R5,R0           AND LENGTH                       GP10047 01620000
+         BNP   MRRET                                            GP10047 01630000
+         TM    DCBRECFM,DCBRECCA+DCBRECCM                       GP10047 01640000
+         BNZ   MRTESTCC                                         GP10047 01650000
+         BCTR  R5,0          ADJUST LENGTH SANS CC              GP10047 01660000
+         LA    R4,1(,R4)     SKIP OVER CC                       GP10047 01670000
+         B     MRTESTNC                                         GP10047 01680000
+MRTESTCC TM    DCBRECFM,DCBRECCA                                GP10047 01690000
+         BO    MRTESTNC                                         GP10047 01700000
+         MVI   0(R4),X'09'   ***** TEMP - SINGLE SPACE *****    GP10047 01710000
+MRTESTNC TM    DCBRECFM,DCBRECU                                 GP10047 01720000
+         BO    MRU                                              GP10047 01730000
+         TM    DCBRECFM,DCBRECF                                 GP10047 01740000
+         BO    MRF                                              GP10047 01750000
+MRU      CH    R5,DCBBLKSI                                      GP10047 01760000
+         BNH   *+8                                              GP10047 01770000
+         LH    R5,DCBBLKSI                                      GP10047 01780000
+         TM    DCBMACF2,DCBMRLCP    LOCATE MODE?                GP10047 01790000
+         BZ    MRULEN                                           GP10047 01800000
+         C     R5,MAXLRECL-DISPRINT(,R8)    FITS?               GP10047 01810000
+         BNH   *+8                  YES                         GP10047 01820000
+         L     R5,MAXLRECL-DISPRINT(,R8)    TRUNCATE            GP10047 01830000
+         LA    R3,4(,R5)            DATA + RDW LENGTH           GP10047 01840000
+         STH   R3,DCBLRECL                                      GP10047 01850000
+         PUT   IHADCB               GET A RECORD                GP10047 01860000
+         SLL   R3,16                                            GP10047 01870000
+         STCM  R3,15,0(R1)          BUILD RDW                   GP10047 01880000
+         LA    R0,4(,R1)                                        GP10047 01890000
+         LR    R1,R5                                            GP10047 01900000
+         MVCL  R0,R4                MOVE DATA TO BUFFER         GP10047 01910000
+         B     MRRET                                            GP10047 01920000
+MRULEN   STH   R5,DCBLRECL                                      GP10047 01930000
+MRF      LR    R0,R4                RECORD ADDRESS              GP10047 01940000
+         PUT   IHADCB,(0)                                       GP10047 01950000
+MRRET    LM    R0,R15,MRSAVE                                    GP10047 01960000
+         BR    R14                                              GP10047 01970000
+MRSAVE   DC    16A(0)                                           GP10047 01980000
+         POP   USING                                            GP10047 01990000
+         SPACE 1                                                        02000000
+* ------------------------------------------------------------------ *  02010000
+*                                                                    *  02020000
+*              WORK AREAS                                            *  02030000
+*                                                                    *  02040000
+* ------------------------------------------------------------------ *  02050000
+         SPACE 1                                                        02060000
+LINEWORK DC    0D'0',PL8'0'          LINES ADDED BY THIS I/O    GP10047 02070000
+P1       DC    P'1'                  CONSTANT                   GP99132 02080000
+LINECT   DC    PL3'0'                LINE COUNT                         02090000
+PAGECT   DC    PL3'0'                PAGE COUNT                         02100000
+PAGEEDWD DC    X'402020202120'       CONSTANT                           02110000
+         SPACE 1                                                        02120000
+&DAY     SETC  '&SYSDATE'(7,2)    YEAR                          GP10058 02130000
+&DAM     SETC  '&SYSDATE'(1,2)    MONTH                         GP10058 02140000
+&DAD     SETC  '&SYSDATE'(4,2)    DAY                           GP10058 02150000
+HEADCC   DC    CL01'1'                                                  02160000
+         DC    CL45' '                                          GP10058 02170000
+         DC    CL13'DISASSEMBLER'                               GP10058 02180000
+         DC    C'Version &DAY..&DAM..&DAD'                      GP10058 02190000
+         DC    CL46' '                                          GP10058 02200000
+         DC    CL04'PAGE'                                               02210000
+HEADPAGE DC    CL06' '                                                  02220000
+HEADING  EQU   HEADCC,*-HEADCC,C'C'                             GP10047 02230000
+         SPACE 1                                                        02240000
+SUBHCC   DC    C'0'                                                     02250000
+SUBHWORK DC    CL132' '                                         GP10047 02260000
+SUBHEAD  EQU   SUBHCC,*-SUBHCC,C'C'                             GP10047 02270000
+         SPACE 1                                                        02280000
+DISPRINT DCB   DDNAME=DISPRINT,DSORG=PS,MACRF=PM,EXLST=EXLSTPRT GP10047 02290000
+MAXLRECL DC    F'0'          LRECL AFTER OPEN; DEVTYPE BEFORE   GP10047 02300000
+EXLSTPRT DC    0A(0),X'85',AL3(PRTEXIT)                         GP10047 02310000
+         SPACE 2                                                GP10047 02320000
+*---------------------------------------------------------------------* 02330000
+*                                                                     * 02340000
+*   DCB OPEN EXIT FOR OUTPUT PRINTING:                                * 02350000
+*      DEFAULT TO FBA,133,1330   USING MOVE MODE                      * 02360000
+*      IF OUTPUT IS V, CHANGE TO LOCATE MODE                          * 02370000
+*                                                                     * 02380000
+*---------------------------------------------------------------------* 02390000
+         PUSH  USING                                            GP10047 02400000
+         DROP  ,                                                GP10047 02410000
+         USING PRTEXIT,R15                                      GP10047 02420000
+         USING IHADCB,R1                                        GP10047 02430000
+PRTEXIT  N     R1,=X'00FFFFFF'    KILL OPEN FLAGS               GP10047 02440000
+         SR    R2,R2              CLEAR FOR DIVIDE              GP10047 02450000
+         SR    R3,R3              BLOCK SIZE                    GP10047 02460000
+         SR    R4,R4              RECORD LENGTH                 GP10047 02470000
+         ICM   R4,3,DCBLRECL      LOAD RECORD LENGTH            GP10047 02480000
+         ICM   R3,3,DCBBLKSI      LOAD BLOCK SIZE               GP10047 02490000
+         TM    DCBRECFM,DCBRECLA  ANY RECORD FORMAT ?           GP10047 02500000
+         BNZ   PRTEXITR           YES; KEEP                     GP10047 02510000
+         OI    DCBRECFM,DCBRECF+DCBRECBR+DCBRECCA  DEFAULT FBA  GP10047 02520000
+PRTEXITR MVI   DCBMACF2,DCBMRPUT+DCBMRMVP   SET MOVE MODE       GP10047 02530000
+         TM    DCBRECFM,DCBRECF   IS IT F OR U VS. V OR D?      GP10047 02540000
+         BNZ   PRTEXITM           YES; USE MOVE MODE            GP10047 02550000
+         MVI   DCBMACF2,DCBMRPUT+DCBMRLCP   SET LOCATE          GP10047 02560000
+PRTEXITM LTR   R4,R4              ANY RECORD LENGTH ?           GP10047 02570000
+         BNZ   PRTEXITL           YES                           GP10047 02580000
+         LA    R4,132             SET DEFAULT TEXT LENGTH       GP10047 02590000
+         TM    DCBRECFM,DCBRECF   U OR F?                       GP10047 02600000
+         BNZ   *+8                YES                           GP10047 02610000
+         LA    R4,4(,R4)          ALLOW FOR RDW                 GP10047 02620000
+         TM    DCBRECFM,DCBRECCC  CARRIAGE CONTROL ?            GP10047 02630000
+         BZ    PRTEXITL           NO                            GP10047 02640000
+         LA    R4,1(,R4)          ALLOW FOR IT                  GP10047 02650000
+PRTEXITL LTR   R3,R3              ANY BLOCKSIZE?                GP10047 02660000
+         BNZ   PRTEXITB           YES; CHECK LRECL IF F         GP10047 02670000
+         CLI   MAXLRECL-DISPRINT+2(R1),X'20'    DASD OUTPUT?    GP10047 02680000
+         BE    PRTBLKDA      YES; USE TABLE                     GP10047 02690000
+         CLI   MAXLRECL-DISPRINT+2(R1),X'08' UNIT REC OUTPUT?   GP10047 02700000
+         BE    PRTBLKUR      YES; UNBLOCKED                     GP10047 02710000
+         CLI   MAXLRECL-DISPRINT+2(R1),X'01'   SPOOL OUTPUT?    GP10047 02720000
+         BE    PRTBLKSP      YES; USE 4K                        GP10047 02730000
+         L     R3,=A(32760)  ELSE USE MAX ALLOWED               GP10047 02740000
+         B     PRTEXITB                                         GP10047 02750000
+PRTBLKUR LA    R3,4(,R4)     USE RECORD LENGTH                  GP10047 02760000
+         B     PRTEXITB                                         GP10047 02770000
+PRTBLKSP L     R3,=A(4096)   USE ONE PAGE FOR SPOOLING          GP10047 02780000
+         B     PRTEXITB                                         GP10047 02790000
+PRTBLKDA SR    R6,R6         CLEAR FOR IC                       GP10047 02800000
+         TM    MAXLRECL-DISPRINT+3(R1),X'F0'  FUNNIES?          GP10047 02810000
+         BNZ   PRTBLK10      YES; USE ARBITRARY VALUE           GP10047 02820000
+         ICM   R6,1,MAXLRECL-DISPRINT+3(R1)                     GP10047 02830000
+         BNP   PRTBLK10      USE ARBITRARY VALUE                GP10047 02840000
+         SLL   R6,1          CONVERT TO OFFSET                  GP10047 02850000
+         LA    R6,DASDSIZE-2(R6)  POINT TO MAXBLOCK             GP10047 02860000
+         ICM   R4,3,0(R6)         GET BLOCK SIZE                GP10047 02870000
+         B     PRTEXITB                                         GP10047 02880000
+PRTBLK10 LA    R3,1374            ARBITRARY                     GP10047 02890000
+PRTEXITB TM    DCBRECFM,DCBRECF   F OR U ?                      GP10047 02900000
+         BZ    PRTEXITV           NO; V OR D                    GP10047 02910000
+         TM    DCBRECFM,DCBRECU   U?                            GP10047 02920000
+         BO    PRTEXITX           YES; KEEP IT                  GP10047 02930000
+         DR    R2,R4              GET BLOCKING FACTOR           GP10047 02940000
+         LTR   R3,R3              AT LEAST ONE ?                GP10047 02950000
+         BP    *+8                YES                           GP10047 02960000
+         LA    R3,1               SET TO ONE                    GP10047 02970000
+         MR    R2,R4              GET NEW BLOCK SIZE            GP10047 02980000
+         B     PRTEXITX           STASH BACK                    GP10047 02990000
+PRTEXITV LA    R2,4(,R4)     LRECL+4                            GP10047 03000000
+         CR    R2,R3         COMPARE TO BLOCK                   GP10047 03010000
+         BNH   PRTEXITX      OK                                 GP10047 03020000
+         OI    DCBRECFM,DCBRECSB  NEED SPANNED OR LARGER BLOCK  GP10047 03030000
+PRTEXITX STH   R3,DCBBLKSI   SET NEW BLOCK SIZE                 GP10047 03040000
+         STH   R4,DCBLRECL      AND RECORD LENGTH               GP10047 03050000
+         ST    R4,MAXLRECL-DISPRINT(,R1)  SAVE FOR LOCATE MODE  GP10047 03060000
+         BR    R14           AND RETURN TO OPEN                 GP10047 03070000
+DASDSIZE DC    H'3625,20483,4892,27998,6144,14136,14660,7294' 2311-2314 03080000
+         DC    H'13030,8368,19069,17600,13030,23476,27998' 3330-3390    03090000
+         LTORG ,                                                GP10047 03100000
+         POP   USING                                            GP10047 03110000
+         SPACE 1                                                GP10047 03120000
+* ------------------------------------------------------------------ *  03130000
+*                                                                    *  03140000
+*              PRINT MODULE INTERFACE BLOCK                          *  03150000
+*                                                                    *  03160000
+* ------------------------------------------------------------------ *  03170000
+PRMBLOK  PRTBLOK  TYPE=DSECT,PFX=PRM   MAKE UNIQUE NAMES        GP99138 03180000
+         SPACE 2                                                        03190000
+* ------------------------------------------------------------------ *  03200000
+*                                                                    *  03210000
+*              COMMON DATA MAP                                       *  03220000
+*                                                                    *  03230000
+* ------------------------------------------------------------------ *  03240000
+DISASM00 DISASMCM TYPE=DSECT                                            03250000
+         PRINT NOGEN                                            GP99138 03260000
+         DCBD  DEVD=DA,DSORG=PS                                 GP99138 03270000
+         END  DISASMPR                                                  03280000

@@ -1,0 +1,248 @@
+DA06     TITLE 'DISASM06 - TEXT VERIFY / REPLACE / PRINT'       GP10082 00010000
+*--------------------------------------------------------------------*  00020000
+*                                                                    *  00030000
+*  Module name: DISASM06                                             *  00040000
+*                                                                    *  00050000
+*  Function:                                                         *  00060000
+*   TEXT printer.  The object module will have already been read     *  00070000
+*   into storage by the module reader DISASM03.  Fields COMMTXT and  *  00080000
+*   COMMCSLN in DISASM00 will have been set to the address and       *  00090000
+*   length of the module in storage.                                 *  00100000
+*                                                                    *  00110000
+*--------------------------------------------------------------------*  00120000
+         COPY  DISASMGB                                                 00130000
+DISASM06 MODHEAD ,           ENTRY HOUSEKEEPING                 GP99140 00140000
+         ICM   R3,15,COMMVERS        ANY VERIFY DATA ?          GP10082 00150000
+         BZ    DOREPS                NO; CHECK FOR REPLACE      GP10082 00160000
+         USING VERPSECT,R3           DECLARE VERIFY BLOCK       GP10082 00170000
+         SR    R9,R9                 FLAG FOR ALL VERIFIED      GP10082 00180000
+VERLOOP  LM    R14,R15,VERPOFFS      LOAD OFFSET AND LENGTH     GP10082 00190000
+         LA    R1,0(R15,R14)         LAST BYTE                  GP10082 00200000
+         C     R1,COMMCSLN           IN RANGE?                  GP10082 00210000
+         BNL   VERBUMP               NO; IGNORE (LATER MSG?)    GP10082 00220000
+         A     R14,COMMTXT           RELOCATE                   GP10082 00230000
+         EX    R15,EXVERTEX          VERIFIES ?                 GP10082 00240000
+         BE    VERBUMP               YES                        GP10082 00250000
+         LR    R9,R14                TOO BAD                    GP10082 00260000
+         MVC   PRTDATA(MSG05L),MSG05E      MAKE MESSAGE         GP10082 00270000
+         SHEX  PRTDATA+MSG05O-MSG05E,VERPOFFS  SHOW OFFSET      GP10082 00280000
+         BAL   R14,PRINTREC                                     GP10082 00290000
+VERBUMP  ICM   R3,15,VERPNEXT        NEXT REQUEST               GP10082 00300000
+         BNZ   VERLOOP               TEST IT                    GP10082 00310000
+         LTR   R9,R9                 ANY ERROR                  GP10082 00320000
+         BZ    DOREPS                NO; CHECK FOR REPS         GP10082 00330000
+         MVC   PRTDATA(MSG06L),MSG06E      MAKE MESSAGE         GP10082 00340000
+         BAL   R14,PRINTREC                                     GP10082 00350000
+         OI    COMMFLAG,$ERROR+$ABORT  NO-NO                    GP10082 00360000
+         B     TAKEDUMP              QUIT AFTER DUMPING TEXT    GP10082 00370000
+DOREPS   ICM   R3,15,COMMREPS        ANY REPLACE DATA?          GP10082 00380000
+         BZ    TESTDUMP              NO; CHECK FOR PRINT        GP10082 00390000
+         USING VERPSECT,R3           DECLARE REPLACE BLOCK      GP10082 00400000
+REPLOOP  LM    R14,R15,VERPOFFS      LOAD OFFSET AND LENGTH     GP10082 00410000
+         LA    R1,0(R15,R14)         LAST BYTE                  GP10082 00420000
+         C     R1,COMMCSLN           IN RANGE?                  GP10082 00430000
+         BNL   REPBUMP               NO; IGNORE (LATER MSG?)    GP10082 00440000
+         A     R14,COMMTXT           RELOCATE                   GP10082 00450000
+         EX    R15,EXREPTEX          REPLACE                    GP10082 00460000
+REPBUMP  ICM   R3,15,VERPNEXT        NEXT REQUEST               GP10082 00470000
+         BNZ   REPLOOP               TEST IT                    GP10082 00480000
+         MVC   PRTDATA(MSG08L),MSG08I      MAKE MESSAGE         GP10082 00490000
+         BAL   R14,PRINTREC                                     GP10082 00500000
+         B     TESTDUMP              CHECK FOR STORAGE DUMP     GP10082 00510000
+         SPACE 1                                                        00520000
+EXVERTEX CLC   VERPTEXT(0),0(R14)    VERIFY MATCHES ?           GP10082 00530000
+EXREPTEX MVC   0(0,R14),VERPTEXT     REPLACE TEXT               GP10082 00540000
+         DROP  R3                                               GP10082 00550000
+         SPACE 2                                                GP10082 00560000
+TESTDUMP TM    PRINTFG2,$PFHEX       PRINTING TEXT?             GP99132 00570000
+         BZ    EXIT0000              NO; JUST GET OUT           GP99132 00580000
+TAKEDUMP MVC   COMMSUBH(SUBHEADL),SUBHEAD                               00590000
+         LA    R1,SUBHEADL           SUBHEADING LENGTH                  00600000
+         STH   R1,COMMSUBL           SET LENGTH                         00610000
+         MVI   PRTCMD,$PRTHEAD       FORCED HEADING                     00620000
+         BAL   R14,PRINTDAT          PRINT FORCED HEADING       GP99138 00630000
+         L     R3,COMMCSLN           CSECT'S LENGTH                     00640000
+         L     R4,COMMTXT            TEXT'S ADDRESS                     00650000
+         XC    TEXTDISP,TEXTDISP     INITIALIZE DISPLACEMENT            00660000
+TEXT0020 DS    0H                                                       00670000
+         LR    R5,R3                 COPY LENGTH                        00680000
+         CH    R5,COMMH32            MORE THAN 1 LINE'S WORTH?          00690000
+         BNH   TEXT0030              NO                                 00700000
+         LH    R5,COMMH32            LIMIT TO 1 LINE                    00710000
+TEXT0030 DS    0H                                                       00720000
+         MVC   MSG01HX,COMMBLKS      INITIALIZE HEX DATA                00730000
+         MVC   MSG01CH,COMMBLKS      INITIALIZE CHARACTER DATA          00740000
+         UNPK  MSG01DSP(9),TEXTDISP(5)                                  00750000
+         TR    MSG01DSP,COMMHXTR     TRANSLATE TO PRINTABLE     GP99132 00760000
+         MVI   MSG01DSP+8,C' '       RESTORE BLANK                      00770000
+         UNPK  WORKHX1(9),00(5,R4)   UNPACK DATA                        00780000
+         UNPK  WORKHX2(9),04(5,R4)   UNPACK DATA                        00790000
+         UNPK  WORKHX3(9),08(5,R4)   UNPACK DATA                        00800000
+         UNPK  WORKHX4(9),12(5,R4)   UNPACK DATA                        00810000
+         UNPK  WORKHX5(9),16(5,R4)   UNPACK DATA                        00820000
+         UNPK  WORKHX6(9),20(5,R4)   UNPACK DATA                        00830000
+         UNPK  WORKHX7(9),24(5,R4)   UNPACK DATA                        00840000
+         UNPK  WORKHX8(9),28(5,R4)   UNPACK DATA                        00850000
+         TR    WORKHX1,COMMHXTR      TRANSLATE TO PRINTABLE     GP99132 00860000
+         TR    WORKHX2,COMMHXTR      TRANSLATE TO PRINTABLE     GP99132 00870000
+         TR    WORKHX3,COMMHXTR      TRANSLATE TO PRINTABLE     GP99132 00880000
+         TR    WORKHX4,COMMHXTR      TRANSLATE TO PRINTABLE     GP99132 00890000
+         TR    WORKHX5,COMMHXTR      TRANSLATE TO PRINTABLE     GP99132 00900000
+         TR    WORKHX6,COMMHXTR      TRANSLATE TO PRINTABLE     GP99132 00910000
+         TR    WORKHX7,COMMHXTR      TRANSLATE TO PRINTABLE     GP99132 00920000
+         TR    WORKHX8,COMMHXTR      TRANSLATE TO PRINTABLE     GP99132 00930000
+         MVI   WORKHX1+8,C' '        RESTORE BLANK                      00940000
+         MVI   WORKHX2+8,C' '        RESTORE BLANK                      00950000
+         MVI   WORKHX3+8,C' '        RESTORE BLANK                      00960000
+         MVI   WORKHX4+8,C' '        RESTORE BLANK                      00970000
+         MVI   WORKHX5+8,C' '        RESTORE BLANK                      00980000
+         MVI   WORKHX6+8,C' '        RESTORE BLANK                      00990000
+         MVI   WORKHX7+8,C' '        RESTORE BLANK                      01000000
+         LR    R1,R5                 COPY LENGTH                        01010000
+         LA    R1,LENTBLE(R1)        PRINT LENGTH'S ADDRESS             01020000
+         SR    R2,R2                 CLEAR REGISTER                     01030000
+         IC    R2,0(,R1)             PRINT LENGTH                       01040000
+         BCTR  R2,0                  MINUS 1 FOR EXECUTE                01050000
+         EX    R2,HEXMVC             MOVE HEX DATA                      01060000
+         LR    R1,R5                 COPY LENGTH                        01070000
+         BCTR  R1,0                  MINUS 1 FOR EXECUTES               01080000
+         EX    R1,CHARMVC            MOVE CHARACTER                     01090000
+         EX    R1,CHARTR             TRANSLATE UNPRINTABLES TO PERIODS  01100000
+         MVC   PRTDATA(MSG01L),MSG01 SET MESSAGE                        01110000
+         BAL   R10,PRT0000           PRINT TEXT                         01120000
+         L     R1,TEXTDISP           CURRENT DISPLACEMENT       GP99140 01130000
+         LA    R1,32(,R1)            UPDATE DISPLACEMENT                01140000
+         ST    R1,TEXTDISP           SAVE UPDATED DISPLACEMENT  GP99140 01150000
+         LA    R4,32(,R4)            NEXT TEXT                          01160000
+         SR    R3,R5                 MINUS LENGTH PRINTED               01170000
+         BNZ   TEXT0020              CONTINUE                           01180000
+         B     EXIT0000              EXIT                               01190000
+PRT0000  DS    0H                                                       01200000
+         TM    COMMFLAG,$ERROR       ERROR MESSAGE?             GP99132 01210000
+         BNZ   PRT0005               YES; PRINT IT              GP99132 01220000
+         TM    PRINTFG2,$PFHEX       PRINT CSECT TEXT ?         GP99132 01230000
+         BNZ   PRT0005               YES                        GP99132 01240000
+         MVI   PRTDATA,C' '          JUST CLEAR                 GP99132 01250000
+         MVC   PRTDATA+1(L'PRTDATA-1),PRTDATA   PRINT BUFFER    GP99132 01260000
+         BR    R10                   JUST RETURN                GP99132 01270000
+PRT0005  BAL   R14,PRINTREC                                     GP99138 01280000
+         BR    R10                   RETURN                             01290000
+EXIT0000 DS    0H                                                       01300000
+         ITRACE ID=EXIT                                                 01310000
+         L     R13,4(,R13)           RESTORE REGISTER 13                01320000
+         LM    R14,R12,12(R13)       RESTORE ALL OTHER REGISTERS        01330000
+         SR    R15,R15               GIVE GOOD RETURN CODE              01340000
+         BR    R14                   RETURN TO CALLER                   01350000
+HEXMVC   MVC   MSG01HX(0),HEXWORK    MOVE HEX TO PRINT MESSAGE          01360000
+CHARMVC  MVC   MSG01CH(0),0(R4)      MOVE CHARACTER TO PRINT            01370000
+CHARTR   TR    MSG01CH(0),PRTTABLE   TRANSLATE ALL TO PRINTABLE         01380000
+*---------------------------------------------------------------------* 01390000
+*                                                                     * 01400000
+*              WORK AREAS                                             * 01410000
+*                                                                     * 01420000
+*---------------------------------------------------------------------* 01430000
+TEXTDISP DC    A(0)                                             GP99140 01440000
+SUBHEAD  DC    C' TEXT '                                                01450000
+SUBHEADL EQU   *-SUBHEAD                                                01460000
+MSG01    DS    0C                                                       01470000
+MSG01DSP DC    CL08' '                                                  01480000
+         DC    CL03' '                                                  01490000
+MSG01HX  DC    CL73' '                                                  01500000
+         DC    CL03' '                                                  01510000
+MSG01CH  DC    CL32' '                                                  01520000
+MSG01L   EQU   *-MSG01                                                  01530000
+         SPACE 1                                                        01540000
+MSG05E   DC    C'DISASM0605E VERIFY AT '                        GP10082 01550000
+MSG05O   DC    CL8' ',C' NOT MATCHED'                           GP10082 01560000
+MSG05L   EQU   *-MSG05E                                         GP10082 01570000
+         SPACE 1                                                GP10082 01580000
+MSG06E   DC    C'DISASM0606E UNMATCHED VERIFY TEXT; DUMPING TEXT'       01590000
+MSG06L   EQU   *-MSG06E                                         GP10082 01600000
+         SPACE 1                                                GP10082 01610000
+MSG08I   DC    C'DISASM0608I REPLACE TEXT APPLIED'              GP10082 01620000
+MSG08L   EQU   *-MSG08I                                         GP10082 01630000
+         SPACE 1                                                        01640000
+LENTBLE  DC    AL1(00)                  NOT USED                        01650000
+         DC    AL1(02)                  WHEN LENGTH = 01                01660000
+         DC    AL1(04)                  WHEN LENGTH = 02                01670000
+         DC    AL1(06)                  WHEN LENGTH = 03                01680000
+         DC    AL1(08)                  WHEN LENGTH = 04                01690000
+         DC    AL1(11)                  WHEN LENGTH = 05                01700000
+         DC    AL1(13)                  WHEN LENGTH = 06                01710000
+         DC    AL1(15)                  WHEN LENGTH = 07                01720000
+         DC    AL1(17)                  WHEN LENGTH = 08                01730000
+         DC    AL1(20)                  WHEN LENGTH = 09                01740000
+         DC    AL1(22)                  WHEN LENGTH = 10                01750000
+         DC    AL1(24)                  WHEN LENGTH = 11                01760000
+         DC    AL1(26)                  WHEN LENGTH = 12                01770000
+         DC    AL1(29)                  WHEN LENGTH = 13                01780000
+         DC    AL1(31)                  WHEN LENGTH = 14                01790000
+         DC    AL1(33)                  WHEN LENGTH = 15                01800000
+         DC    AL1(35)                  WHEN LENGTH = 16                01810000
+         DC    AL1(40)                  WHEN LENGTH = 17                01820000
+         DC    AL1(42)                  WHEN LENGTH = 18                01830000
+         DC    AL1(44)                  WHEN LENGTH = 19                01840000
+         DC    AL1(46)                  WHEN LENGTH = 20                01850000
+         DC    AL1(49)                  WHEN LENGTH = 21                01860000
+         DC    AL1(51)                  WHEN LENGTH = 22                01870000
+         DC    AL1(53)                  WHEN LENGTH = 23                01880000
+         DC    AL1(55)                  WHEN LENGTH = 24                01890000
+         DC    AL1(58)                  WHEN LENGTH = 25                01900000
+         DC    AL1(60)                  WHEN LENGTH = 26                01910000
+         DC    AL1(62)                  WHEN LENGTH = 27                01920000
+         DC    AL1(64)                  WHEN LENGTH = 28                01930000
+         DC    AL1(67)                  WHEN LENGTH = 29                01940000
+         DC    AL1(69)                  WHEN LENGTH = 30                01950000
+         DC    AL1(71)                  WHEN LENGTH = 31                01960000
+         DC    AL1(73)                  WHEN LENGTH = 32                01970000
+HEXWORK  DS    0C                                                       01980000
+WORKHX1  DC    CL8' '                                                   01990000
+         DC    CL1' '                                                   02000000
+WORKHX2  DC    CL8' '                                                   02010000
+         DC    CL1' '                                                   02020000
+WORKHX3  DC    CL8' '                                                   02030000
+         DC    CL1' '                                                   02040000
+WORKHX4  DC    CL8' '                                                   02050000
+         DC    CL3' '                                                   02060000
+WORKHX5  DC    CL8' '                                                   02070000
+         DC    CL1' '                                                   02080000
+WORKHX6  DC    CL8' '                                                   02090000
+         DC    CL1' '                                                   02100000
+WORKHX7  DC    CL8' '                                                   02110000
+         DC    CL1' '                                                   02120000
+WORKHX8  DC    CL8' '                                                   02130000
+         DC    CL1' '                                                   02140000
+PRTTABLE DC    256C'.'                                                  02150000
+         ORG   PRTTABLE+X'40'                                           02160000
+         DC    C' '                                                     02170000
+         ORG   PRTTABLE+X'4A'                                           02180000
+         DC    C'½.<(+|'                                                02190000
+         DC    X'50'                                                    02200000
+         ORG   PRTTABLE+X'5A'                                           02210000
+         DC    C'!$*);^-/'                                              02220000
+         ORG   PRTTABLE+X'6B'                                           02230000
+         DC    C',%_>?'                                                 02240000
+         ORG   PRTTABLE+X'7A'                                           02250000
+         DC    C':#@'                                                   02260000
+         DC    X'7D'                                                    02270000
+         DC    C'="'                                                    02280000
+         ORG   PRTTABLE+X'C0'                                           02290000
+         DC    C'{ABCDEFGHI'                                            02300000
+         ORG   PRTTABLE+X'D0'                                           02310000
+         DC    C'}JKLMNOPQR'                                            02320000
+         ORG   PRTTABLE+X'E2'                                           02330000
+         DC    C'STUVWXYZ'                                              02340000
+         ORG   PRTTABLE+X'F0'                                           02350000
+         DC    C'0123456789'                                            02360000
+         ORG   PRTTABLE+256                                             02370000
+         SPACE 2                                                        02380000
+         LTORG                                                          02390000
+         SPACE 2                                                        02400000
+         COPY  DISASMDA                MAPPINGS                 GP10082 02410000
+*---------------------------------------------------------------------* 02420000
+*                                                                     * 02430000
+*              COMMON DATA MAP                                        * 02440000
+*                                                                     * 02450000
+*---------------------------------------------------------------------* 02460000
+DISASM00 DISASMCM TYPE=DSECT                                            02470000
+         END  DISASM06                                                  02480000

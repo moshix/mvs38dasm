@@ -1,0 +1,20 @@
+//$TESTLST JOB (Z904,0012),GERHARD,CLASS=E,MSGCLASS=C,MSGLEVEL=(1,1)    00000100
+//*                                                                     00000200
+//*      SAMPLE JOB TO SHOW USE OF DISASM TO RETRIEVE A DECK            00000300
+//*      FROM A SAVED ASSEMBLER LISTING.                                00000400
+//*                                                                     00000500
+//*      THIS WORKS BEST IF ORIGINAL ASSEMBLY IS RUN WITH               00000600
+//*      PRINT ON,GEN,DATA (EXCEPTING SYSTEM MAPPING MACROS)            00000700
+//*                                                                     00000800
+//DISASM EXEC  PGM=DISASM,REGION=512K,TIME=1                            00000900
+//STEPLIB  DD  DISP=SHR,DSN=SYS1.LINKLIB                                00001000
+//*                                                                     00001100
+//DISDEBUG DD  SYSOUT=*                                                 00001200
+//DISPRINT DD  SYSOUT=*                                                 00001300
+//DISPUNCH DD  SYSOUT=*                                                 00001400
+//DISLIST  DD  DISP=SHR,DSN=HERC01.SAVED.LISTING                        00001500
+//DISIN    DD  *                                                        00001600
+MODULE   PROGNAME                                                       00001700
+*ABEND                                                                  00001800
+//*                                                                     00001900
+//                                                                      00002000

@@ -1,0 +1,26 @@
+*---------------------------------------------------------------------* 00010000
+*                                                                     * 00020000
+*        PUNCH REQUEST BLOCK                                          * 00030000
+*                                                                     * 00040000
+*---------------------------------------------------------------------* 00050000
+         MACRO                                                          00060000
+&NAME    PUNBLOK  &TYPE=,&PFX=PUN                                       00070000
+         LCLC  &P            JUST TO MAKE IT SHORT                      00080000
+&P       SETC  '&PFX'                                                   00090000
+         AIF      ('&TYPE' EQ 'DSECT').DSECT                            00100000
+&NAME    DS    0C                                                       00110000
+         AGO      .NODSECT                                              00120000
+.DSECT   ANOP                                                           00130000
+         AIF      (T'&NAME EQ 'O').NONAME                               00140000
+&NAME    DSECT                                                          00150000
+.NODSECT ANOP                                                           00160000
+&P.CMD   DC    X'00'               COMMAND                              00170000
+$&P.PRT  EQU   C'P'                .. PUNCH                             00180000
+$&P.PUN  EQU   C'P'                .. PUNCH                             00190000
+$&P.CLS  EQU   C'C'                .. CLOSE PRINT                       00200000
+&P.CC    DC    C' '                CARRIAGE CONTROL                     00210000
+&P.DATA  DC    CL80' '             PRINT DATA                           00220000
+         MEXIT                                                          00230000
+.NONAME  ANOP                                                           00240000
+         MNOTE    12,'NAME REQUIRED WHEN TYPE=DSECT'                    00250000
+         MEND                                                           00260000

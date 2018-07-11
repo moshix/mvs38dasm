@@ -1,0 +1,453 @@
+1                      DISASSEMBLER
+0 DISASM is a multi-pass disassembler.  Source assembler statements are
+  produced from a CSECT of a linkedited module.  The module may contain
+  multiple CSECT's, however DISASM only disassembles one CSECT per
+  execution.
+0 Control statements:
+- Comment statement (optional)
+0 Columns  1 -  1     * (asterisk)
+                      Comments may be specified at any time.  Comments
+                      will be copied to the output listing.
+- ASM START statement (optional)
+0 Columns  1 -  9     Literal 'ASM START'.
+                      Delimits the start of input for the assembler.
+                      Any statements specified are also copied to the
+                      end of the disassembled punched output.  This
+                      allows DSECTs to be assembled so the labels
+                      can be used for data references.  Any DSECT used
+                      in a USING statement must be defined by this
+                      method.  Use care when defining your DSECTs, the
+                      disassembler requires the PRINT option to be on
+                      to determine the DSECT and label names.  If a
+                      macro or copy statement turns the PRINT off, the
+                      DSECT and labels will not be available.
+- ASM END statement (optional)
+0 Columns  1 -  7     Literal 'ASM END'.
+                      Delimits the end of the assembler input.
+- BASE statement (optional)
+0 Columns  1 -  4     Literal 'BASE'.
+          10 - 12     Base register.  Register 1 may be specfied as 1 or
+                      R1, register 10 may be specified as 10 or R10.
+                      Registers 10 to 15 may be specified as A to F or
+                      RA to RF.
+          20 - 27     Starting displacement into the CSECT that the base
+                      register is in effect.  Displacements are given as
+                      hex values 1 to 8 digits long, leading zeros are
+                      not required (0A0 is equivalent to A0).
+          30 - 37     Optional.  Ending displacement into the CSECT that
+                      the base register is in effect.  If omitted, the
+                      ending displacement will be 4096 from the starting
+                      value (in columns 20-27).  coding is the same as
+                      for the starting displacement.
+          40 - 47     Displacement the base register refers to.  For
+                      example if the base register is R12 and R12 is
+                      used as the base in instructions starting at
+                      +X'20', and R12 is set to point to +X'22C' into
+                      the CSECT, the BASE statement would be:
+0                     BASE     R12       20        22C
+0                     If a base register is defined, a LABEL (or PREFIX)
+                      statement is also required.
+- CSECT statement (optional)
+0 Columns  1 -  5     Literal 'CSECT'.
+          10 - 17     CSECT's name.  If the CSECT is not specified, the
+                      first CSECT in the module will be disassembled.
+- DATA statement (optional)
+0 Columns  1 -  4     Literal 'DATA'.
+          10 - 17     Starting displacement into the CSECT where the data
+                      begins.  DATA statements allow you to identify
+                      areas that do not contain instructions.  See the
+                      BASE statement for displacement coding syntax.
+          20 - 27     Displacement where the data ends.
+- LABEL statement (optional)
+0 Columns  1 -  5     Literal 'LABEL'.
+             or
+           1 -  6     literal 'PREFIX'.
+          10 - 14     1 to 4 character label prefix.  Labels generated
+                      due to references within the CSECT will be
+                      PPPPNNNN where PPPP is the prefix specified here
+                      and NNNN is the displacement into the CSECT or
+                      a sequential number (0010, 0020, 0030, etc).
+                      If the prefix is less than 4 characters long, the
+                      numeric portion will be padded on the left with
+                      zeros (labels will always be 8 characters long).
+                      If the LABEL/PREFIX statement is used, base
+                      registers must also be defined.
+- LINE/LINES/MAXLINES statement (optional).
+0 Columns  1 -  4     Literal 'LINE'
+             or
+           1 -  5     Literal 'LINES'
+             or
+           1 -  9     Literal 'MAXLINES'
+          10 - 12     Maximum number of lines to print per page on the
+                      DISPRINT and DISDEBUG data sets.  Line values are
+                      2 to 3 digits, minimum is 10 lines.  Specify the
+                      value left justified, leading zeros may be omitted.
+                      Default line count is 60 lines per page.
+- MODULE statement (required)
+0 Columns  1 -  6     Literal 'MODULE'.
+          10 - 17     Load module's name.  This module must be in the
+                      library specified in the DISMOD DD.
+1 SEQ LABEL STATEMENT (OPTIONAL)
+0 Columns  1 -  9     Literal 'SEQ LABEL'.
+                      Labels generated for labels within the CSECT will
+                      be PPPPNNNN where PPPP is the prefix specified on
+                      in the LABEL or PREFIX statement and NNNN is either
+                      the displacement of the label into the CSECT or a
+                      sequential number.  By default NNNN will be the
+                      displacement in hex.  SEQ LABEL requests the labels
+                      be generated with sequential numbers.  This may be
+                      desirable if the source is to be modified... the
+                      labels may no longer be at the same displacement.
+- USING STATEMENT (OPTIONAL)
+0 Columns  1 -  5     Literal 'USING'.
+          10 - 17     DSECT's name.  Any DSECTs referenced on USING
+                      statements must be defined via assembler input.
+          20 - 27     Label within the DSECT.  In some cases the base
+                      register may be set to point a label within the
+                      DSECT rather than at displacement zero.  If the
+                      base points to displacement zero, leave this
+                      parameter blank.
+          30 - 32     Base register.  See BASE statement for base reg
+                      syntax.
+          40 - 47     If the register specified as the base is used as
+            and       the base in all cases where it appears in the
+          50 - 57     code, leave these parameters blank.  If the base
+                      is only used as a base for the specified DSECT at
+                      in a range of instructions, specify the beginning
+                      displacement in columns 40-47 and the ending
+                      displacement in columns 50-57.  The same base may
+                      be specified for the same DSECT multiple times with
+                      different ranges if necessary.
+1                 JCL REQUIREMENTS
+0      //....     EXEC PGM=DISASM,REGION=nnnnK                 REQ
+       //STEPLIB  DD DSN=xxxx,DISP=SHR                         OPT
+       //SYSPRINT DD DSN=&&PRT,DISP=(NEW,PASS),                OPT
+       //            UNIT=SYSDA,
+       //            SPACE=(TRK,(15,15)),
+       //            DCB=(RECFM=FBM,LRECL=121,BLKSIZE=12100)
+       //SYSIN    DD DSN=&&IN,DISP=(NEW,PASS),                 OPT
+       //            UNIT=SYSDA,
+       //            SPACE=(TRK,(15,15)),
+       //            DCB=(RECFM=FB,LRECL=80,BLKSIZE=3120)
+       //SYSLIB   DD DSN=xxxx,DISP=SHR                         OPT
+       //SYSUT1   DD UNIT=SYSDA,SPACE=(CYL,(1,1))              OPT
+       //SYSPUNCH DD DUMMY                                     OPT
+       //DISDEBUG DD SYSOUT=*                                  OPT
+       //DISPRINT DD SYSOUT=*                                  REQ
+       //DISPUNCH DD SYSOUT=class                              OPT
+       //DISMOD   DD DSN=xxxx,DISP=SHR                         REQ
+       //DISIN    DD *                                         REQ
+             .
+             control statements
+             .
+       /*
+       //
+0If DISASM is an a LINKLST library the STEPLIB is not required.
+ If the assembler input (ASM START/ASM END) is used SYSPRINT, SYSIN,
+ SYSLIB, SYSUT1, and SYSPUNCH are required, otherwise they may be
+ omitted.
+ If the DISPUNCH DD is present, the source will be generated as an
+ 80-byte file suitable for input to the assembler.
+ Any macros or copy statements specified as assembler input must be
+ available in a library in the SYSLIB concatenation.
+1                 ABEND CODES and MESSAGES
+0 ABEND 001     User requested an ABEND via the ABEND statement.
+0 ABEND 002     Unknown return code from BLDL.
+0 ABEND 003     Unknown RLD with unknown type encountered.
+0 ABEND 004     Internal error, RLD data remaining went negative in
+                DISASM05.
+0 ABEND 005     Internal error, attempt to generate an instruction on
+                on an odd address boundary.
+0 DISASM0101I   NO DISPUNCH DD PRESENT, NO SOURCE WILL BE GENERATED
+                Informational only.  The DISPUNCH DD was not present
+                in the JCL, no source deck will be produced.
+0 DISASM0102I   ABEND REQUESTED, PROGRAM ABNORMALLY TERMINATING
+                For diagnositic purposes, an ABEND command was added
+                to cause an abend just prior to freeing the trace table
+                and terminating.  This message is issued immediately
+                before the abend, and indicates the abend was due to
+                the user's request and not due to a problem.
+                DISASM will also have abended with a user 001.
+0 DISASM0103I   ******* DISASSEMBLY COMPLETE *******
+                Indicates that the disassembly was successful.
+0 DISASM0104E   DISIN DD STATEMENT MISSING, PROCESSING WILL BE ABORTED
+                DISASM requires the DISIN DD statement.  DISASM must
+                know at minimum which module it is to disassemble.  The
+                MODULE and all other control statements are provided to
+                DISASM via DISIN.
+0 DISASM0105E   DISMOD DD STATEMENT MISSING, PROCESSING WILL BE ABORTED
+                DISASM loads the module to be disassembled from the
+                library specified by the DISMOD DD, this DD is therefore
+                required.
+0 DISASM0106E   ERROR(S) IN CONTROL STATEMENTS EXECUTION ABORTED
+                Error(s) were detected in the control statements by
+                module DISASM02.  Messages are issued to identify the
+                statement(s) in error.  Correct the control statements
+                and re-run.
+0 DISASM0107E   ERROR(S) IN LOADING OBJECT MODULE, EXECUTION ABORTED
+                Error(s) were encountered by DISASM03 in loading the
+                specified module.  One of the following occurred:
+                   1) the BLDL for the member failed
+                   2) if the specified member was an alias, the
+                      BLDL for the real member failed.
+                   3) the POINT for the member (or real member) failed
+                   4) the requested CSECT was not in the specified
+                      module
+                   5) RLD data overlapped a user defined data area
+                Further messages will have been issued to identify the
+                the cause.
+0 DISASM0108E   ERROR(S) IN PRINTING TEXT, EXECUTION ABORTED
+                Should never occur.  At present there are no errors
+                detected by the text print module, DISASM06.
+0 DISASM0109E   ERROR(S) IN ASSEMBLING DSECTS, EXECUTION ABORTED
+                Either the return code from the assembler was greater
+                than 4, or some other error in interpreting the DSECTs
+                occurred.  Messages will have been issued to identify
+                the cause.
+0 DISASM0110E   ERROR(S) IN GENERATING LABEL TABLE, EXECUTION ABORTED
+                An error condition was detected by DISASM08.  Messages
+                will have been issued to identify the cause.
+0 DISASM0111E   ERROR(S) IN GENERATING SOURCE, EXECUTION ABORTED
+                An error condition was detected by DISASM09.  Messages
+                will have been issued to identify the cause.
+0 DISASM0202W   SEQUENTIALLY NUMBERED LABELS HAVE ALREADY BEEN REQUESTED
+                The SEQ LABEL statement is specified more than once in
+                the control statements.
+0 DISASM0203E   INVALID CONTROL STATEMENT
+                Columns 1-9 of a control statement contain an unknown
+                statement type.  See the list of control statements
+                for valid control statements and their syntax.
+0 DISASM0204E   EXTRANEOUS DATA IN REGISTER PARAMETER
+                DISASM checks for several blanks following a register
+                specification on BASE and USING statements.  This check
+                helps to make sure you specified parameters in the
+                correct columns.  If the blanks are not present, this
+                message is issued and the program abort flag set.
+0 DISASM0205E   INVALID REGISTER REFERENCE
+                The register specified on a BASE or USING statement is
+                invalid.  Valid values are 0-15, A-F, R0-R15, and RA-RF.
+0 DISASM0206E   END DISPLACEMENT IS REQUIRED WHEN BEGIN DISPLACEMENT IS GIVEN
+                On USING statements the beginning and ending displacement
+                values are optional.  If the beginning displacement is
+                given, the ending displacement is also required.
+0 DISASM0207E   BEGIN DISPLACEMENT IS LARGER THAN END DISPLACEMENT
+                The beginning and ending displacement values specify
+                a range of instruction displacements.  The end value
+                must be larger than the begin value.
+0 DISASM0208E   BAD HEX DIGIT IN DISPLACEMENT
+                An invalid character was found in a hex value.  Valid
+                digits are 0-9 and A-F.
+0 DISASM0209E   TOO MANY DIGITS IN DISPLACEMENT
+                Displacement values must be 8 characters or less.
+0 DISASM0210E   END DISPLACEMENT NOT ALLOWED UNLESS START DISPLACEMENT
+                IS SPECIFIED
+                On USING statements the beginning and ending displacement
+                values are optional.  If the ending displacement is
+                given, the beginning displacement is also required.
+0 DISASM0211E   LABEL PREFIX CANNOT BE BLANK
+                The prefix value on a PREFIX or LABEL statement has a
+                blank in the first byte.
+0 DISASM0212E   LABEL PREFIXES MUST BE 4 CHARACTERS OR LESS
+                The value on a PREFIX or LABEL statement is more than
+                4 characters long.  Label prefixes must be 4 characters
+                or less.
+0 DISASM0213E   BASE REGISTER IS BLANK
+                The base register on a BASE or USING statement is blank.
+0 DISASM0214E   BASE REGISTER NAME EXCEEDS 3 CHARACTERS IN LENGTH
+                The base register on a BASE or USING statement is more
+                than 3 characters long.  Valid values are 0-15, A-F,
+                R0-R15, and RA-RF.
+0 DISASM0215E   'DATA' IS RESERVED FOR DATA AREA PREFIXES, CHOOSE
+                ANOTHER PREFIX
+0 DISASM0216E   INVALID DIGIT IN LINE/LINES/MAXLINES STATEMENT
+                The line count limit specified contains a non-numeric
+                digit.
+0 DISASM0217E   LINE COUNT VALUE ON A LINE/LINES/MAXLINES STATEMENT IS
+                TOO LONG OR CONTAINS EXTRANEOUS DATA
+                The line count value is 1 to 3 digits.  Either the value
+                is more than 3 digits or there is other data in the
+                next 6 spaces.
+0 DISASM0218E   LINE COUNT VALUE ON A LINE/LINES/MAXLINES STATEMENT IS
+                BELOW MINIMUM ALLOWED
+                A minimum allowable line count value is specified in the
+                global options (member DISASMGB) when DISASM is genned.
+                The value you are requesting is below this minimum.
+0 DISASM0219E   LABEL PREFIX HAS ALREADY BEEN DEFINED, CHOOSE ONE OR THE
+                OTHER
+                DISASM only allows 1 label prefix value.  The PREFIX or
+                LABEL statement has been found more than once.  Choose
+                one of the prefixes and delete the second statement.
+0 DISASM0220E   LABEL PREFIX MUST BE DEFINED WHEN BASE REGISTER(S) ARE
+                DEFINED
+                When a BASE is defined, labels will be generated for
+                any points referenced within the CSECT.  Labels require
+                a 1 to 4 character prefix specified by either the LABEL
+                or PREFIX statement.
+0 DISASM0221E   LABEL PREFIX NOT VALID UNLESS BASE REGISTER(S) ARE DEFINED
+                Labels for the CSECT cannot be generated unless a BASE
+                is defined.
+0 DISASM0222E   THIS AREA OVERLAPS DATA AT xxxx TO xxxx
+                An area being defined as a DATA area overlaps another
+                area that has already been defined at xxxx to xxxx.
+0 DISASM0223E   BEGINNING DISPLACEMENT IS LARGER THAN ENDING DISPLACEMENT
+                The beginning displacement is larger than the ending
+                displacement on a BASE statement.
+0 DISASM0301E   SPECIFIED CSECT NOT FOUND
+                The CSECT specified on the CSECT statement is not a
+                part of the specified MODULE or the module contains no
+                CSECTs.
+0 DISASM0302E   UNKNOWN RETURN CODE FROM POINT MACRO
+                DISASM received a return code from the POINT macro that
+                it could not interpret.
+0 DISASM0303E   DCB EODAD ROUTINE DRIVEN, END OF CONTROL RECORDS NOT
+                DETECTED
+                The EODAD routine of the DISMOD DCB should never be
+                driven.  The last record of the requested CSECT should
+                be detected.  This is an internal logic error.
+0 DISASM0304E   MODULE DOES NOT EXIST IN DISMOD LIBRARY
+                The member specified on the MODULE statement was not
+                found in the DISMOD library.
+0 DISASM0305E   PERMANENT I/O ERROR
+                BLDL received return code 08 with reason code 01.
+0 DISASM0306E   INSUFFICIENT VIRTUAL STORAGE
+                BLDL received return code 08 with reason code 04.
+0 DISASM0307E   DEB NOT IN KEY 0-7
+                BLDL received return code 08 with reason code 08.
+0 DISASM0308E   DEVICE DOES NOT SUPPORT BLOCK IDENTIFIER
+                POINT received return code 04 with reason code 00.
+0 DISASM0309E   INCORRECT PARAMETER
+                POINT received return code 08 with reason code 01.
+0 DISASM0310E   INCORRECT DEB OR DEBCHK ERROR
+                POINT received return code 08 with reason code 02.
+0 DISASM0311E   ENVIRONMENTAL ERROR
+                POINT received return code 08 with reason code 03.
+0 DISASM0312E   UNSUCCESSFUL CALL TO ESTAE
+                POINT received return code 08 with reason code 0B.
+0 DISASM0313E   UNSUCCESSFUL GETMAIN
+                POINT received return code 08 with reason code 0C.
+0 DISASM0314E   INPUT/OUTPUT ERROR
+                POINT received return code 0C with reason code 00.
+0 DISASM0501E   UNKNOWN RLD DATA TYPE
+                RLD data contains an item that is of an unknown type.
+                DISASM will have abended with code user 003.
+0 DISASM0502E   RLD DATA REMAINING WENT NEGATIVE
+                Internal logic error in module DISASM05.
+                DISASM will have abended with code user 004.
+0 DISASM0503E   RLD POINTER LARGER THAN NUMBER OF ESD ITEMS
+                Some RLD items have corresponding ESD items.  When
+                the pointer value is non-zero, it is the relative number
+                of the ESD item it is associated with.  In this case the
+                pointer value is larger than the number of ESD items.
+0 DISASM0504E   RLD DATA AT xxxx TO xxxx OVERLAPS A USER DEFINED DATA
+                AREA AT xxxx TO xxxx
+0 DISASM0701I   ASSEMBLER RETURN CODE WAS xxxx
+                If the return code is greater than 4, DISASM will abort
+                processing.  If you need to view the assembler output,
+                allocate the DISDEBUG DD.
+0 DISASM0702I   NO ASSEMBLER INPUT, NO DSECTS
+0 DISASM0703E   ERROR ASSEMBLING DSECTS, CHECK ASSEMBLER OUTUT IN DISDEBUG
+                The return code from the assembler was greater than 4.
+0 DISASM0801E   DSECT xxxxxxxx IS NOT PRESENT, BUT IS REFERENCED ON A
+                USING STATEMENT.
+                Either 1) the source for the DSECT was not provided
+                       2) the PRINT of the assembler was turned off
+                       3) the name is misspelled
+                If you are sure the name is correct and the source is
+                present, allocate DISDEBUG and check the assembler output.
+0 DISASM0802E   INSTRUCTIONS OVERLAP DATA DEFINED AT xxxx TO xxxx
+                Instruction lengths are determined by the opcodes.  If
+                a portion of an instruction overlaps into a DATA area,
+                this is considered an error condition.  Either increase
+                the size of the DATA area to include the entire instruc-
+                tion, or decrease the size of the DATA area so it does
+                not overlap the end of the instruction.
+0 DISASM0803W   aaaaaaaa DISPLACEMENT IN A bbbbbbbb BLOCK IS CHANGED
+                FROM xxxx TO yyyy TO REFERENCE AN INSTRUCTION BOUNDARY
+                   aaaaaaaa is either BEGINNING or ENDING
+                   bbbbbbbb is either BASE or USING
+                The beginning and ending displacements on BASE and USING
+                statements must reference instruction boundaries.  This
+                is because the USING or DROP statements generated cannot
+                occur in the middle of an instruction.  If a displacement
+                is found that is not on instruction boundary, it is forced
+                to the beginning of the preceding instruction.
+0 DISASM0804E   INVALID OPCODE DURING REFERENCE TABLE GENERATION
+                Internal logic error in DISASM08.
+0 DISASM0805E   LABEL llllllll IS NOT IN DSECT dddddddd AS REQUESTED ON
+                A USING STATEMENT
+                If you are sure the label is in the DSECT, allocate
+                DISDEBUG to verify the assembler output.
+0 DISASM0806E   LABEL NOT FOUND IN DSECT DURING REFERENCE TABLE GENERATION
+                Internal logic error in DISASM08.
+0 DISASM0808E   OVERLAPPING DATA AREAS NOT DETECTED BY DISASM02
+                Interal logic error.
+0 DISASM0809E   ATTEMPT TO LOCATE AN INSTRUCTION ON AN ODD DISPLACEMENT
+                BOUNDARY
+                Internal error in DISASM08, DISASM will abend with code
+                user 005.
+0 DISASM0901E   DATA AREA OVERLAPS AN INSTRUCTION, SHOULD HAVE BEEN
+                DETECTED BY DISASM08.
+                Internal logic error.  See explanation of DISASM0802E.
+0DISASM0902E    INVALID OPCODE DETECTED
+                Internal error.
+0DISASM0903E    DC WITH LENGTH = ZERO DETECTED
+                Internal error.
+0DISASM0904E    ATTEMPT TO GENERATE AN INSTRUCTION ON AN ODD ADDRESS
+                BOUNDARY
+                Internal error.
+1                 Program description
+ This disassembler attempts to re-create assembler source from object
+ code.  Label references are generated if the base registers for the
+ CSECT or DSECTs are defined.
+0CSECT labels will be generated for data referenced within the CSECT
+ if BASE statements define the base register(s).  References to
+ instructions will cause labels to be generated that occur at the
+ displacement of the first byte of the instruction.  If the reference
+ is not on the first byte of the instruction, the label will be referred
+ to with a "+displacement".  For example if a program is self-modifying
+ and sets the length in a MVC instruction with a STC that references the
+ MVC instruction, the generated source might look like:
+0            .
+             STC   R1,MAIN002C+1
+             .
+             .
+    MAIN002C MVC  DATAOUT(1),0(R2)
+             .
+0Labels will also be generated for any ENTRY points defined in the ESD
+ data for the CSECT.
+0DSECT labels require the DSECT's source to be assembled, and the base
+ defined via a USING statement.  Assembler-H (IEV90) is invoked
+ dynamically to assemble the DSECT(s).  The assembler output listing
+ is scanned to determine the DSECT names, label names, and the displace-
+ ment to the label in the DSECT.  In order for the disassembler to
+ detect DSECTs and the labels, the assembler print must be on.  If any
+ macro or copy code turns off the print, the DSECTs and labels will
+ be unknown.  Any DSECT referred to by a USING statement must be defined
+ by having the assembler assemble it.
+0Assembler source statements are delimited by ASM START/ASM END.  Any
+ statements between the ASM START and ASM END statements will be copied
+ to the assembler input data set and appended onto the end of the source
+ written to DISPUNCH.  Any macros not in the assembler input stream must
+ be available in a library in the SYSLIB concatenation.  If the return
+ code from the assembler is greater than 4, the disassembler discontinues
+ any further processing.  If there is no assembler input, the SYSPRINT,
+ SYSIN, SYSUT1, SYSPUNCH, and SYSLIB DD's may be omitted.
+0If the DISPUNCH DD is present, the generated code will also be
+ written to this data set as 80-byte records suitable as input to the
+ assembler.
+0Object code is considered to be an instruction if:
+    1) it is not in a defined data area
+    2) it is on an even address boundary
+    3) it is a valid opcode
+    4) it does not overlap into a defined data area or RLD item.
+    5) it is followed by another valid opcode or is an unconditional
+       branch or SVC.
+    6) a string of blanks will not be interpreted as a series of STH
+       instructions.
+0The valid opcodes include S/360, S/370, most S/390, and some Z/900.
+0Extended mnemonics are used if possible for branch instructions.
+0SVC's are interpreted if possible (SVC 0A is identified as GETMAIN).
+0The DISDEBUG DD statement is optional.  If present, many internal
+ fields and data chains will be printed to aid in debugging problems
+ with the disassembler.  The assembler output is copied to DISDEBUG
+ for diagnosing errors with the assembler input.

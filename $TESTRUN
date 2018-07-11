@@ -1,0 +1,85 @@
+//HERC01X  JOB  (Z),MOSHIX,CLASS=A,MSGCLASS=A,MSGLEVEL=(1,1)            00000100
+//*                                                                     00000200
+//DISASM EXEC  PGM=DISASM01,REGION=1024K,TIME=1                         00000300
+//STEPLIB  DD  DISP=SHR,DSN=SYS1.LINKLIB                                00000400
+//*                                                                     00000500
+//*  ALL SYS--- DD CARDS FOLLOWING ARE FOR INTERNAL ASSEMBLER CALLS     00000600
+//SYSTERM  DD  SYSOUT=*                                                 00000700
+//SYSPRINT DD  DISP=(,PASS),DSN=&&ASPT,UNIT=SYSDA,                      00000800
+//             SPACE=(TRK,(100,100),RLSE),                              00000900
+//             DCB=(RECFM=FBM,LRECL=121,BLKSIZE=1331)                   00001000
+//SYSIN    DD  DISP=(,PASS),DSN=&&ASIN,UNIT=SYSDA,                      00001100
+//             SPACE=(TRK,(15,15),RLSE),                                00001200
+//             DCB=(RECFM=FB,LRECL=80,BLKSIZE=19040)                    00001300
+//SYSLIB   DD  DISP=SHR,DSN=SYS1.MACLIB,DCB=BLKSIZE=32720               00001400
+//         DD  DISP=SHR,DSN=SYS1.AMODGEN                                00001500
+//         DD  DISP=SHR,DSN=SYS1.HASPSRC                                00001600
+//*        DD  DISP=SHR,DSN=GERHARD.MVS.PVTMACS                         00001700
+//*        DD  DISP=SHR,DSN=GERHARD.MVS.ESPMAC                          00001800
+//SYSUT1   DD  UNIT=SYSDA,SPACE=(CYL,(5,1))                             00001900
+//SYSUT2   DD  UNIT=SYSDA,SPACE=(CYL,(5,1))                             00002000
+//SYSUT3   DD  UNIT=SYSDA,SPACE=(CYL,(5,1))                             00002100
+//SYSPUNCH DD  DUMMY                                                    00002200
+//SYSUDUMP DD  SYSOUT=*                                                 00002300
+//*  END ASSEMBLER CARDS                                                00002400
+//DISDEBUG DD  SYSOUT=*                                                 00002500
+//DISPRINT DD  DISP=(,PASS),DSN=&&LIST,UNIT=SYSDA,                      00002600
+//             SPACE=(TRK,(100,100),RLSE),                              00002700
+//             DCB=BLKSIZE=1331                                         00002800
+//DISPRINT DD  SYSOUT=*,DCB=BLKSIZE=1331                                00002900
+//DISPUNCH DD  SYSOUT=*,DCB=BLKSIZE=3120                                00003000
+//*                                                                     00003100
+//DISMOD   DD  DISP=SHR,DSN=SYS1.LINKLIB                                00003200
+//         DD  DISP=SHR,DSN=SYS1.LPALIB                                 00003300
+//         DD  DISP=SHR,DSN=SYS1.NUCLEUS                                00003400
+//DISIN    DD  *                                                        00003500
+MEMBER   IEANUC01                                                       00003600
+CSECT    IEC0SCR1                                                       00003700
+PREFIX   PFX                                                            00003800
+PRINT    DIR RLD ASM LABEL                                              00003900
+BASE     15        0000      0245      00                               00004000
+BASE     15        0246      0249      0246                             00004100
+BASE     15        024A      028F      00                               00004200
+BASE     15        0290      0293      0290                             00004300
+BASE     15        0294      0347      00                               00004400
+BASE     15        0348      034B      0348                             00004500
+BASE     15        034C      0391      00                               00004600
+BASE     15        0392      0395      0392                             00004700
+BASE     15        0396      04BF      00                               00004800
+BASE     15        04C0      04C3      04C0                             00004900
+BASE     15        04C4      061F      00                               00005000
+BASE     15        0620      0623      0620                             00005100
+BASE     15        0624      0669      00                               00005200
+BASE     15        066A      066D      066A                             00005300
+BASE     15        066E      0767      00                               00005400
+BASE     15        0768      076B      0768                             00005500
+BASE     15        076C      080B      00                               00005600
+BASE     15        080C      080F      080C                             00005700
+BASE     15        0810      0855      00                               00005800
+BASE     15        0856      0859      0856                             00005900
+BASE     15        085A      0953      00                               00006000
+BASE     15        0954      0957      0954                             00006100
+BASE     15        0958      09AF      00                               00006200
+BASE     15        09B0      0DF7      09B0                             00006300
+DATA     0004      0007                                                 00006400
+DATA     0020      0040                                                 00006500
+DATA     0180      01C7                                                 00006600
+DATA     09E6      09E7                                                 00006700
+DATA     0D94      0D9B                                                 00006800
+DATA     0DA0      0DF7                                                 00006900
+USING    CVT                 9         005A      005D                   00007000
+USING    DVCTI               9         005E      0061                   00007100
+USING    DVCT                9         0064      03FF                   00007200
+USING    TRKCALC   STARDCTA  1         0058      0DF7                   00007300
+USING    CVT                 9         0400      0403                   00007400
+USING    DVCTI               9         0404      0407                   00007500
+ASM START                                                               00007600
+         PRINT ON,GEN,DATA                                              00007700
+         CVT   DSECT=YES,LIST=YES                                       00007800
+TRKCALC  DSECT ,                                                        00007900
+         TRKCALC MF=D                                                   00008000
+         IHADVCT  ,                                                     00008100
+ASM END                                                                 00008200
+*PRINT    DIR RLD ASM TRACE XRF  CRUD                                   00008300
+*ABEND                                                                  00008400
+//                                                                      00008500

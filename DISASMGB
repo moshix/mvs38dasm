@@ -1,0 +1,16 @@
+* ------------------------------------------------------------------- * 00010000
+*                                                                     * 00020000
+*     GLOBAL OPTIONS.  SEE MACRO DISOPT FOR EXPLANATION OF OPTIONS.   * 00030000
+*                                                                     * 00040000
+*  DEFAULT MAXLINE UPPED TO 58 TO ALLOW 55 ASSEMBLER LINES PER PAGE.  * 00050000
+*                                                                     * 00060000
+* ------------------------------------------------------------------- * 00070000
+         GBLA  &TRNBRG,&MAXL,&MINL                                      00080000
+         GBLB  &MVSXA        ON IF MVS/XA OR LATER              GP04234 00090000
+         GBLC  &TROPT,&DAPRT,&COMPRT                                    00100000
+         DISOPT COMLIST=OFF,        ASSEMBLER'S NAME                   +00110000
+               DALIST=OFF,          DON'T PRINT DATA AREA              +00120000
+               MAXLINE=59,          DEFAULT IS 55 LINES PER PAGE       +00130000
+               MINLINE=10,          MINIMUM LINE COUNT ALLOWABLE IS 10 +00140000
+               TRACE=ON,            GENERATE TRACE                     +00150000
+               TRNBR=1000           1000 TRACE ENTRIES                  00160000

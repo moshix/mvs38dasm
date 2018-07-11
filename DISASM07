@@ -1,0 +1,337 @@
+DA07     TITLE 'DISASM07 - DSECT ASSEMBLER AND INTERPRETER'             00010000
+*--------------------------------------------------------------------*  00020000
+*                                                                    *  00030000
+*  Module name: DISASM07                                             *  00040000
+*                                                                    *  00050000
+*  Function:                                                         *  00060000
+*   Dynamically invoke the assembler (IEV90) to assemble DSECTs.     *  00070000
+*   Any method of defining DSECTs that are valid to the assembler    *  00080000
+*   may be used, they may be defined inline, by macros, or copy      *  00090000
+*   statements.  The disassembler links to the assembler to assemble *  00100000
+*   the source, then scans the assembler output to learn the DSECT   *  00110000
+*   names, label names, and displacements to the labels.  In order   *  00120000
+*   for DISASM to find the names and displacements, the PRINT option *  00130000
+*   of the assembler must be on.                                     *  00140000
+*                                                                    *  00150000
+*   Labels and DSECT names are limited to 8 characters in length.    *  00160000
+*                                                                    *  00170000
+*   The disassembler has a limitation of X'FFFF' for the maximum     *  00180000
+*   displacement value.                                              *  00190000
+*                                                                    *  00200000
+*   Input to the assembler is delimited by ASM START and ASM END     *  00210000
+*   statements.  Any statements between the ASM START and ASM END    *  00220000
+*   are copied to SYSIN.  Assembler input statements are listed on   *  00230000
+*   the DISPRINT output, but are otherwise ignored.  Any macros not  *  00240000
+*   defined inline and any copy elements must be available to the    *  00250000
+*   assembler in a library in the SYSLIB concatenation.              *  00260000
+*                                                                    *  00270000
+*   If the return code from the assembler is greater than 4, the     *  00280000
+*   disassembly is aborted.  The assembler output is copied to the   *  00290000
+*   DISDEBUG data set if allocated.                                  *  00300000
+*                                                                    *  00310000
+*   The DSECTs are chained from field COMMDSCT of module DISASM00.   *  00320000
+*   The labels within the DSECT are chained from field DSCTLBA.      *  00330000
+*   DSCTDSCT maps the DSECT control blocks, LABLDSCT maps the label  *  00340000
+*   control blocks.                                                  *  00350000
+*                                                                    *  00360000
+*--------------------------------------------------------------------*  00370000
+         COPY  DISASMGB                                                 00380000
+DISASM07 MODHEAD ,           ENTRY HOUSEKEEPING                 GP99140 00390000
+         XC    COMMSUBL,COMMSUBL     NO SUBHEADING                      00400000
+         TM    COMMFLAG,$ASMIN       ANY ASSEMBLER INPUT?               00410000
+         BNO   DSCT0300              NO                                 00420000
+         LA    R2,ASMPARML-2 SET DEFAULT LENGTH                 GP99131 00430000
+         DEVTYPE =CL8'SYSTERM',COMMDWRD  OPTIONAL SYSTERM?      GP99131 00440000
+         BXH   R15,R15,SETPARM       NO                         GP99131 00450000
+         ICM   R0,15,COMMDWRD        DD DUMMY?                  GP99131 00460000
+         BZ    SETPARM                                          GP99131 00470000
+         LA    R2,ASMPARTL-2  ELSE APPEND TERM OPTION           GP99131 00480000
+SETPARM  STH   R2,ASMPARM    SET PARM LENGTH                    GP99131 00490000
+         LOAD  EPLOC=IBMASM          LOAD THE ASSEMBLER         GP99131 00500000
+         ST    R0,ASMEP              SAVE ASSEMBLER'S ENTRY POINT       00510000
+         LR    R15,R0                COPY TO R15                        00520000
+         LA    R1,AASMPARM           ASSEMBLER PARM LIST ADDRESS        00530000
+         ITRACE ID=CALLASM,          CALLING THE ASSEMBLER             +00540000
+               RDATA1=R15,           .. ASSEMBLER'S ENTRY POINT        +00550000
+               RDATA2=R1             .. ASSEMBLER'S PARM LIST ADDRESS   00560000
+*OLD*    BASSM R14,R15               LINK TO ASSEMBLER                  00570000
+*  NOTE: BASSM WORKS, BUT SYNCH RESULTS IN FASTER INSTRUCTION TRACING   00580000
+         AIF   (&MVSXA).XASYN   USE NEW CODE                    GP04234 00590000
+         SYNCH (15),RESTORE=YES                                 GP04234 00600000
+         AGO   .COMSYN                                          GP04234 00610000
+.XASYN   SYNCH (15),RESTORE=YES,AMODE=DEFINED                   GP99029 00620000
+.COMSYN  ITRACE ID=ASMRC,            TRACE ASSEMBLER'S RETURN CODE     +00630000
+               RDATA1=R15            .. RETURN CODE                     00640000
+         STH   R15,ASMRC             SAVE ASSEMBLER RETURN CODE         00650000
+         CVD   R15,COMMDWRD          CONVERT TO DECIMAL                 00660000
+         MVI   PRTCC,C'0'            DOUBLE SPACE                       00670000
+         MVC   MSG01RC,=X'40202120'  SET EDIT WORD                      00680000
+         ED    MSG01RC,COMMDWRD+6    EDIT RETURN CODE                   00690000
+         MVC   PRTDATA(MSG01L),MSG01 SET MESSAGE                        00700000
+         BAL   R10,PRT0000           PRINT RETURN CODE MESSAGE          00710000
+         OPEN  (SYSPRINT,INPUT)      OPEN SYSPRINT AS INPUT             00720000
+         MVC   COMMDBSH,ASMHEAD      SET HEADING                        00730000
+         MVI   DBUGCMD,$DBUGHD       SET COMMAND                        00740000
+         LA    R1,DBUGBLOK           DEBUG PARAMETER BLOCK ADDRESS      00750000
+         L     R15,ADB               DEBUG ENTRY POINT                  00760000
+         BALR  R14,R15               PRINT DEBUG HEADING                00770000
+         MVI   DBUGCMD,$DBUGPRT      SET COMMAND                        00780000
+         SR    R3,R3                 NO DSECT IS ACTIVE                 00790000
+DSCT0010 DS    0H                                                       00800000
+         GET   SYSPRINT              READ A SYSPRINT RECORD     GP99145 00810000
+         LR    R8,R1         PRESERVE THE RECORD ADDRESS        GP99145 00820000
+         USING ASMSTMT,R8    AND DECLARE IT                     GP99145 00830000
+         LA    R1,ASMSTMT+1          DATA ADDRESS FOR DEBUG     GP99145 00840000
+         ST    R1,DBUGDATA           SET DATA ADDRESS           GP99145 00850000
+         LA    R1,DBUGBLOK           DBUG PARAMETER BLOCK ADDRESS       00860000
+         L     R15,ADB               DEBUG ENTRY POINT                  00870000
+         BALR  R14,R15               LINK TO DEBUG                      00880000
+         CLC   ASMRC,COMMH4          ASSEMBLER ERROR?                   00890000
+         BH    DSCT0010              YES                                00900000
+         ITRACE ID=TEMP1,                                              +00910000
+               DATA1=ASMLABL,                                          +00920000
+               DATA2=ASMDISP                                            00930000
+         CLI   ASMLABL,C'*'          COMMENT STATEMENT?                 00940000
+         BE    DSCT0010              YES                                00950000
+         OC    ASMSTMT+1(80),COMMBLKS MAKE A LITTLE UPPER CASE  GP99145 00960000
+         CLC   XREF,ASMSTMT+59       HL ASM ?                   GP99145 00970000
+         BE    DSCT0018              YES; SKIP                  GP99145 00980000
+         CLC   XREF,ASMSTMT+45       START OF CROSS REFERENCE?  GP99145 00990000
+         BNE   DSCT0020              NO                                 01000000
+DSCT0018 OI    XREFFLAG,$XREF        SET CROSS REFERENCE FLAG   GP99145 01010000
+         ITRACE ID=XREF              CROSS REFERENCE STARTED            01020000
+DSCT0020 TM    XREFFLAG,$XREF        CROSS REFERENCE FOUND?     GP99145 01030000
+         BO    DSCT0010              YES                                01040000
+         CLI   ASMLABL,C' '          LABEL PRESENT?                     01050000
+         BE    DSCT0010              NO                                 01060000
+         TRT   ASMDISP,HEXTRT  VALID HEX DISPLACEMENT?          GP99145 01070000
+         BNZ   EQUTEST         NO; SEE WHETHER EQUATE           GP08234 01080000
+EQUJOIN  MVC   WORKLABL,COMMBLKS     CLEAR LABEL NAME                   01090000
+         LA    R5,ASMLABL            FIRST BYTE OF LABEL        GP99145 01100000
+         TRT   ASMLABL(9),BLKTRT  FIND NEXT BLANK OR NON-LABEL CHAR.    01110000
+         BZ    DSCT0035      TOO LONG; TOO BAD                  GP99145 01120000
+         LR    R15,R1        COPY STOP ADDRESS                  GP99145 01130000
+         SR    R15,R5        GET LENGTH - 1                     GP99145 01140000
+         CLM   R2,1,BLKTRT+C' '  FOUND A SYNTACTIC BLANK?       GP99145 01150000
+         BE    DSCT0040      YES; CONTINUE                      GP99145 01160000
+         B     DSCT0010      ELSE READ NEXT SYSPRINT RECORD     GP99145 01170000
+         SPACE 1                                                GP08234 01180000
+* ------------------------------------------------------------------- * 01190000
+*   AN EQU STATEMENT FLUNKS THE HEX DISPLACEMENT TEST.                * 01200000
+*     LOOK FOR HEX ADDR2 FIELD AFTER BLANKS, AND AN                   * 01210000
+*     EQU *  (OTHERS MAY BE VALID, BUT I CAN'T TEST FOR RELOCATBLE)   * 01220000
+* ------------------------------------------------------------------- * 01230000
+EQUTEST  LTR   R3,R3         IN A DSECT ?                       GP08234 01240000
+         BZ    DSCT0010      NO; IGNORE                         GP08234 01250000
+         CLC   ASMDISP(ASMADR2-1-ASMDISP),ASMDISP+1    BLANK ?  GP08234 01260000
+         BNE   DSCT0010      NO; IGNORE                         GP08234 01270000
+         TRT   ASMADR2,HEXTRT  VALID ADDR2 ?                    GP08234 01280000
+         BNZ   DSCT0010      NO; IGNORE                         GP08234 01290000
+         MVC   ASMDISP+L'ASMDISP-L'ASMADR2(L'ASMADR2),ASMADR2   GP08234 01300000
+         TRT   ASMLABL(9),BLKTRT   LOOK FOR BLANK AFTER LABEL   GP08234 01310000
+         BZ    DSCT0010      NONE; IGNORE                       GP08234 01320000
+         LA    R15,20        DON'T SCAN TOO MUCH MORE           GP08234 01330000
+EQUFEQU  CLC   =C' EQU ',0(R1)  EQUATE STATEMENT ?              GP08234 01340000
+         BE    EQUTEST2      YES; LOOK FOR *                    GP08234 01350000
+         LA    R1,1(,R1)     TRY AGAIN                          GP08234 01360000
+         BCT   R15,EQUFEQU                                      GP08234 01370000
+         B     DSCT0010      QUIT                               GP08234 01380000
+EQUTEST2 LA    R15,10        SCAN A FEW MORE                    GP08234 01390000
+         LA    R1,5(,R1)     SKIP EQU AND BLANKS                GP08234 01400000
+EQUFAST  CLI   0(R1),C'*'    HERE ?                             GP08234 01410000
+         BE    EQUHAST       YES                                GP08234 01420000
+         LA    R1,1(,R1)     TRY AGAIN                          GP08234 01430000
+         BCT   R15,EQUFAST                                      GP08234 01440000
+         B     DSCT0010      QUIT                               GP08234 01450000
+EQUHAST  TRT   1(8,R1),ABSTRTAB  + OR - DIGITS ONLY ?           GP08234 01460000
+         CLM   R2,1,ABSTRTAB+C' '   ENDS ON BLANK/COMMA ?       GP08234 01470000
+         BE    EQUJOIN       YES; USE IT                        GP08234 01480000
+         B     DSCT0010      ELSE IGNORE                        GP08234 01490000
+         SPACE 1                                                GP99145 01500000
+DSCT0035 ITRACE ID=LONGLABL                                     GP99145 01510000
+         B     DSCT0010              READ NEXT SYSPRINT RECORD          01520000
+         SPACE 1                                                GP99145 01530000
+EXMVCLBL MVC   WORKLABL(0),ASMLABL   MOVE LABEL TO WORK AREA    GP99145 01540000
+DSCT0040 EX    R15,EXMVCLBL  MOVE LABEL                         GP99145 01550000
+         TRT   0(10,R1),NBLTRT  LOOK FOR A NON-BLANK            GP99145 01560000
+         BZ    DSCT0110      NOT FOUND; TREAT AS LABEL          GP99145 01570000
+         CLC   =C'START ',0(R1)  START?                         GP99145 01580000
+         BE    DSCT0070              YES                                01590000
+         CLC   =C'SECT ',1(R1)   IS THIS AN XSECT?              GP99145 01600000
+         BNE   DSCT0110              YES                        GP99145 01610000
+         CLI   0(R1),C'C'    CSECT?                             GP99145 01620000
+         BE    DSCT0070              YES                        GP99145 01630000
+         CLI   0(R1),C'D'    DSECT?                             GP99145 01640000
+         BE    DSCT0070              YES                        GP99145 01650000
+         CLI   0(R1),C'R'    RSECT?                             GP99145 01660000
+         BNE   DSCT0110              NO.. MUST BE A LABEL               01670000
+DSCT0070 DS    0H                                                       01680000
+         ITRACE ID=SCANDSCT                                             01690000
+         LA    R2,COMMDSCT           DSECT ANCHOR                       01700000
+         ICM   R3,15,COMMDSCT        FIRST DSECT BLOCK                  01710000
+         USING DSCTDSCT,R3           DEFINE BASE                        01720000
+         BZ    DSCT0090              NO DSECTS YET                      01730000
+DSCT0080 DS    0H                                                       01740000
+         CLC   DSCTNAME,WORKLABL     ALREADY ON DSECT CHAIN?            01750000
+         BE    DSCT0100              YES.. EXIT WITH BASE SET           01760000
+         LR    R2,R3                 COPY ADDRESS                       01770000
+         ICM   R3,15,DSCTNEXT        NEXT DSECT BLOCK                   01780000
+         BNZ   DSCT0080              LOOP                               01790000
+DSCT0090 LA    R0,DSCTL                                         GP99140 01800000
+         BAL   R14,GETMAIN           ACQUIRE STORAGE FOR NEW DSECT BLK  01810000
+         ST    R1,DSCTNEXT-DSCTDSCT(,R2)  CHAIN NEW TO PREVIOUS BLOCK   01820000
+         ITRACE ID=NEWDSECT,         NEW DSECT BLOCK                   +01830000
+               RDATA1=R1,            .. BLOCK'S ADDRESS                +01840000
+               DATA2=WORKLABL        .. DSECT'S NAME                    01850000
+         LR    R3,R1                 SET BASE                           01860000
+         MVC   DSCTEYE,=CL8'DSECT '  SET BLOCK ID               GP99145 01870000
+*OBS*    XC    DSCTNEXT,DSCTNEXT     ZERO 'NEXT' BLOCK ADDRESS  GP99154 01880000
+         MVC   DSCTNAME,WORKLABL     SET DSECT'S NAME                   01890000
+*OBS*    XC    DSCTLBA,DSCTLBA       CLEAR LABEL POINTER        GP99154 01900000
+         B     DSCT0010                                                 01910000
+DSCT0100 DS    0H                                                       01920000
+         ITRACE ID=DUPDSECT                                             01930000
+         B     DSCT0010                                                 01940000
+DSCT0110 DS    0H                                                       01950000
+         LTR   R3,R3                 DSECT DETERMINED YET?              01960000
+         BZ    DSCT0010              NO                                 01970000
+DSCT0120 DS    0H                                                       01980000
+         MVC   DISPIN,ASMDISP        COPY DISPLACEMENT                  01990000
+         NC    DISPIN,COMM1F1F       PREPARE FOR TRANSLATE              02000000
+         TR    DISPIN,COMMCHHX       TRANSLATE FOR PACKING              02010000
+         PACK  DISPOUT(4),DISPIN(7)  PACK DISPLACEMENT                  02020000
+         LA    R2,DSCTLBA            LABEL CHAIN ANCHOR                 02030000
+         ICM   R4,15,DSCTLBA         FIRST LABEL                        02040000
+         USING LABLDSCT,R4           DEFINE BASE                        02050000
+         BZ    DSCT0140              NO LABELS                          02060000
+DSCT0130 DS    0H                                                       02070000
+         CLC   DISPOUT(3),LABLDISP+1 INSERT HERE?                       02080000
+         BH    DSCT0140              YES                                02090000
+         LR    R2,R4                 COPY ADDRESS                       02100000
+         ICM   R4,15,LABLNEXT        NEXT LABEL                         02110000
+         BNZ   DSCT0130              LOOP                               02120000
+DSCT0140 LA    R0,LABLL                                         GP99140 02130000
+         BAL   R14,GETMAIN           ACQUIRE STORAGE FOR NEW LABEL BLK  02140000
+         ITRACE ID=NEWLABL,          NEW LABEL BLOCK                   +02150000
+               RDATA1=R1,            .. BLOCK'S ADDRESS                +02160000
+               DATA2=WORKLABL        .. LABEL'S NAME                    02170000
+         ST    R1,LABLNEXT-LABLDSCT(,R2) CHAIN PREVIOUS BLOCK TO NEW    02180000
+         ST    R4,LABLNEXT-LABLDSCT(,R1) CHAIN NEXT BLOCK TO NEW        02190000
+         LR    R4,R1                 SET BASE                           02200000
+         MVC   LABLEYE,LABEL         SET BLOCK IDENTIFIER               02210000
+         MVC   LABLNAME,WORKLABL     SET LABEL NAME                     02220000
+*OBS*    MVI   LABLDISP,X'00'        FORCE FIRST BYTE TO ZERO   GP99154 02230000
+         MVC   LABLDISP+1(3),DISPOUT SET DISPLACEMENT TO LABEL          02240000
+         MVI   LABLTYPE,$LABLD       DATA TYPE LABEL                    02250000
+         MVI   LABLSRCE,C'A'         SHOW FROM ASSEMBLER        GP99142 02260000
+         B     DSCT0010                                                 02270000
+DSCT0200 DS    0H                                                       02280000
+         CLC   ASMRC,COMMH4          ERROR DURING ASSEMBLY?             02290000
+         BNH   EXIT0000              NO                                 02300000
+         ITRACE ID=ASMERROR                                             02310000
+         OI    COMMFLAG,$ERROR+$ABORT                                   02320000
+         MVC   PRTDATA(EMSG01L),EMSG01                                  02330000
+         BAL   R10,PRT0000           PRINT MESSAGE                      02340000
+         B     EXIT0000              AND EXIT                           02350000
+DSCT0300 DS    0H                                                       02360000
+         ITRACE ID=NOASMIN                                              02370000
+         MVI   PRTCC,C'0'            DOUBLE SPACE                       02380000
+         MVC   PRTDATA(MSG99L),MSG99 SET MESSAGE                        02390000
+         BAL   R10,PRT0000           PRINT MESSAGE                      02400000
+         B     EXIT0000              AND EXIT                           02410000
+         SPACE 1                                                GP99138 02420000
+PRT0000  BAL   R14,PRINTREC                                     GP99138 02430000
+         BR    R10                   RETURN                             02440000
+EXIT0000 DS    0H                                                       02450000
+         OC    ASMEP,ASMEP           ASSEMBLER LOADED?                  02460000
+         BZ    EXIT0010              NO                                 02470000
+         ITRACE ID=DELASM            DELETE ASSEMBLER                   02480000
+         DELETE EPLOC=IBMASM                                    GP99132 02490000
+EXIT0010 DS    0H                                                       02500000
+         ITRACE ID=EXIT                                                 02510000
+         L     R13,4(,R13)           RESTORE REGISTER 13                02520000
+         LM    R14,R12,12(R13)       RESTORE ALL OTHER REGISTERS        02530000
+         SR    R15,R15               GIVE GOOD RETURN CODE              02540000
+         BR    R14                   RETURN TO CALLER                   02550000
+*---------------------------------------------------------------------* 02560000
+*                                                                     * 02570000
+*              WORK AREAS                                             * 02580000
+*                                                                     * 02590000
+*---------------------------------------------------------------------* 02600000
+         AIF   (&MVSXA).NEWASM                                  GP04234 02610000
+IBMASM   DC    CL8'IFOX00'   XF ASM; WAS IEV90                  GP04234 02620000
+         AGO   .COMASM                                          GP04234 02630000
+.NEWASM  ANOP  ,                                                GP04234 02640000
+IBMASM   DC    CL8'ASMA90'   HL ASM; WAS IEV90                  GP99132 02650000
+.COMASM  ANOP  ,                                                GP04234 02660000
+ASMEP    DC    A(0)                  ASSEMBLER'S ENTRY POINT            02670000
+AASMPARM DC    A(ASMPARM+X'80000000') ASSEMBLER PARMS                   02680000
+ASMRC    DC    H'0'                  ASSEMBLER'S RETURN CODE            02690000
+ASMPARM  DC    AL2(ASMPARML-2)                                          02700000
+         DC    C'DECK'                                                  02710000
+         DC    C',NOOBJECT'                                             02720000
+         DC    C',XREF(FULL)'                                   GP03062 02730000
+ASMPARML EQU   *-ASMPARM                                                02740000
+         DC    C',TERM'      OPTIONAL SYSTERM DD                GP99131 02750000
+ASMPARTL EQU   *-ASMPARM                                        GP99131 02760000
+XREF     DC    C' CROSS REFERENCE '                                     02770000
+XREFFLAG DC    X'00'                 CROSS REFERENCE FLAG               02780000
+$XREF    EQU   X'80'                 .. CROSS REFERENCE HAS BEEN FOUND  02790000
+WORKLABL DC    CL8' '                                                   02800000
+DISPIN   DC    CL7' '                                                   02810000
+DISPOUT  DC    XL4'000000'                                              02820000
+LABEL    DC    CL8'LABEL'                                               02830000
+ASMHEAD  DC    CL35'ASSEMBLER OUTPUT'                                   02840000
+MSG01    DC    C'DISASM0701I ASSEMBLER RETURN CODE WAS '                02850000
+MSG01RC  DC    CL04' '                                                  02860000
+MSG01L   EQU   *-MSG01                                                  02870000
+MSG99    DC    C'DISASM0702I NO OPTIONAL ASSEMBLER INPUT, NO DSECTS AVA'02880000
+               ILABLE'                                          GP10060 02890000
+MSG99L   EQU   *-MSG99                                                  02900000
+EMSG01   DC    C'DISASM0703E ERROR ASSEMBLING DSECTS, CHECK ASSEMBLER O+02910000
+               UTPUT IN DISDEBUG'                                       02920000
+EMSG01L  EQU   *-EMSG01                                                 02930000
+         SPACE 1                                                GP99145 02940000
+*---------------------------------------------------------------------* 02950000
+*                                                                     * 02960000
+*              DEBUG MODULE INTERFACE BLOCK                           * 02970000
+*                                                                     * 02980000
+*---------------------------------------------------------------------* 02990000
+DBUGBLOK DBUGBLOK TYPE=CSECT                                            03000000
+*---------------------------------------------------------------------* 03010000
+*                                                                     * 03020000
+*              ASSEMBLER OUTPUT DCB                                   * 03030000
+*                                                                     * 03040000
+*---------------------------------------------------------------------* 03050000
+SYSPRINT DCB   DDNAME=SYSPRINT,                                        +03060000
+               DSORG=PS,                                               +03070000
+               EODAD=DSCT0200,                                         +03080000
+               MACRF=GL     (WAS MOVE MODE!)                    GP99145 03090000
+         SPACE 2                                                        03100000
+         LTORG                                                          03110000
+         SPACE 1                                                GP08234 03120000
+ABSTRTAB DC    256AL1(8)     FAIL EVERYTHING                    GP08234 03130000
+         ORG   ABSTRTAB+C' '   SPACE IS EXPECTED STOPPER        GP08234 03140000
+         DC    AL1(4)                                           GP08234 03150000
+         ORG   ABSTRTAB+C','   COMMA IS EXPECTED STOPPER        GP08234 03160000
+         DC    AL1(4)                                           GP08234 03170000
+         ORG   ABSTRTAB+C'0'   DIGITS ARE ACCEPTABLE            GP08234 03180000
+         DC    10AL1(0)                                         GP08234 03190000
+         ORG   ,                                                GP08234 03200000
+         SPACE 2                                                        03210000
+ASMSTMT  DSECT ,             MAP ASSEMBLER OUTPUT RECORD        GP99145 03220000
+         DS    C             CARRIAGE CONTROL                   GP99145 03230000
+ASMDISP  DS    CL6                                              GP99145 03240000
+         ORG   ASMSTMT+29                                       GP08234 03250000
+ASMADR2  DS    CL5           ASM X/F - EQU VALUE                GP08234 03260000
+         ORG   ASMSTMT+41                                       GP99145 03270000
+ASMLABL  DS    CL8                                              GP99145 03280000
+         SPACE 2                                                GP99145 03290000
+         COPY     DISASMDA                                              03300000
+*---------------------------------------------------------------------* 03310000
+*                                                                     * 03320000
+*              COMMON DATA MAP                                        * 03330000
+*                                                                     * 03340000
+*---------------------------------------------------------------------* 03350000
+DISASM00 DISASMCM TYPE=DSECT                                            03360000
+         END  DISASM07                                                  03370000

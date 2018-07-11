@@ -1,0 +1,61 @@
+//ASMXL   PROC WORK=VIO,OBJECT=,DECK=NO,LIST=,TEST=NO,XREF=,LCT=60,     00010000
+//             RENT=NO,TERM=,NUM=NO,ESD=,RLD=NO,SPRM=,REF=SHORT,        00020000
+//             ASMPRM=,ASMREG=512K,TS='TERM=TS,',                       00030000
+//             MAC='SYS1.MACLIB',                                       00040000
+//             MAC1='SYS1.AMODGEN',                                     00050000
+//             MAC2='SYS1.HASPSRC', JES2                                00060000
+//             MAC3='SYS1.MACLIB',  'SYS1.ZMACLIB', S/390 OP CODES      00070000
+//             SRC='GERHARD.???.???SRC',                                00080000
+//             LIB='GERHARD.TEST.LOADLIB',  *TEST LIBRARY*              00090000
+//             LKED=IEWL,                                               00100000
+//             LKEDPRM='XREF,MAP',                                      00110000
+//             LKEDREG=512K,                                            00120000
+//             MEMBER='?MEMBER?'  <--- MEMBER NAME TO BE ASSEMBLED      00130000
+//*                                                                     00140000
+//********************************************************************* 00150000
+//*                                                                   * 00160000
+//*     THIS PROC IS FOR ASSEMBLING DISTINCT COMPONENTS (TSSO, ETC.)  * 00170000
+//*     WITHOUT ESP OR OTHER CONFOUNDING MACROS.                      * 00180000
+//*                                                                   * 00190000
+//*            TO SPECIFY ADDITIONAL OPTIONS, CODE ASMPRM=',OPT...'   * 00200000
+//*            TO OBTAIN A LONG XREF LIST, SPECIFY REF=FULL           * 00210000
+//*                                                                   * 00220000
+//********************************************************************* 00230000
+//*                                                                     00240000
+//C       EXEC PGM=IFOX00,COND=(4,LT),REGION=&ASMREG,                   00250000
+//             PARM=(&OBJECT.OBJ,&DECK.DECK,&LIST.LIST,&TEST.TEST,      00260000
+//             '&XREF.XREF(&REF)','LINECOUNT(&LCT)',&RENT.RENT,         00270000
+//             &TERM.TERM,&TERM.STMT,&NUM.NUM,&ESD.ESD,&RLD.RLD&ASMPRM, 00280000
+// 'SYSPARM(&SPRM)')                                                    00290000
+//*                                                                     00300000
+//SYSTERM  DD  &TS.SYSOUT=*                                             00310000
+//SYSLIB   DD  DISP=SHR,DSN=&MAC,DCB=BLKSIZE=32720                      00320000
+//         DD  DISP=SHR,DSN=&MAC1                                       00330000
+//         DD  DISP=SHR,DSN=&MAC2                                       00340000
+//         DD  DISP=SHR,DSN=&MAC3                                       00350000
+//         DD  DISP=SHR,DSN=&SRC                                        00360000
+//SYSUT1   DD  DSN=&&SYSUT1,UNIT=(&WORK,SEP=SYSLIB),                    00370000
+//             SPACE=(1700,(4000,1000),,CONTIG)                         00380000
+//SYSUT2   DD  DSN=&&SYSUT2,UNIT=(&WORK,SEP=(SYSUT1,SYSLIB)),           00390000
+//             SPACE=(1700,(4000,1000),,CONTIG)                         00400000
+//SYSUT3   DD  DSN=&&SYSUT3,UNIT=(&WORK,SEP=(SYSUT2,SYSUT1)),           00410000
+//             SPACE=(1700,(4000,1000),,CONTIG)                         00420000
+//SYSPRINT DD  SYSOUT=*,DCB=(LRECL=121,BLKSIZE=605)                     00430000
+//SYSPUNCH DD  SYSOUT=B,DCB=(RECFM=FB,LRECL=80,BLKSIZE=400)             00440000
+//SYSGO    DD  DSN=&&OBJ,UNIT=(&WORK,SEP=(SYSUT3,SYSUT1)),              00450000
+//             DCB=(RECFM=FB,LRECL=80,BLKSIZE=3120),                    00460000
+//             SPACE=(80,(2000,1000),,CONTIG),DISP=(MOD,PASS)           00470000
+//SYSIN    DD  DDNAME=INPUT                                             00480000
+//INPUT    DD  DISP=SHR,DSN=&SRC.(&MEMBER)                              00490000
+//*                                                                     00500000
+//L       EXEC PGM=&LKED,PARM=(LET,LIST,&LKEDPRM),                      00510000
+//             REGION=&LKEDREG,COND=(4,LT,C)                            00520000
+//SYSLIN   DD  DSN=&&OBJ,DISP=(OLD,DELETE)                              00530000
+//         DD  DDNAME=SYSIN                                             00540000
+//SYSLMOD  DD  DISP=SHR,DSN=&LIB.(&MEMBER)                              00550000
+//*            SPACE=(1024,(100,60,17),,CONTIG),DISP=(MOD,PASS)         00560000
+//SYSLIB   DD  DISP=SHR,DSN=&LIB                                        00570000
+//SYSUT1   DD  UNIT=(&WORK,SEP=(SYSLIN,SYSLMOD)),                       00580000
+//             SPACE=(1024,(100,60),,CONTIG)                            00590000
+//SYSPRINT DD  SYSOUT=* DCB=(LRECL=121,BLKSIZE=605)                     00600000
+//*                                                                     00610000

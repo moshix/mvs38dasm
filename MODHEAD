@@ -1,0 +1,58 @@
+         MACRO ,                                                        00010000
+&NM     MODHEAD &BASE=(R12),&LOADWK=NO                                  00020000
+.*  MACRO CREATED BY G. POSTPISCHIL FOR UNIFORM PROGRAM ENTRY,  GP99139 00030000
+.*  AND ENTRY CONVENTION (B AROUND/DATA/LR 12,15) FOR PGMTRACE USE.     00040000
+         LCLA  &I,&J,&K,&N                                              00050000
+         LCLC  &BASUS,&OP,&PR,&LS                                       00060000
+&NM      START 0                                                        00070000
+&NM      AMODE 31                                               GP99148 00080000
+&NM      RMODE 24            NON-RENT CODE WITH DCBS IN-LINE    GP99148 00090000
+         B     MODENT-&NM.(,R15)  BRANCH AROUND                         00100000
+         DC    AL1(L'MODHEAD)                                           00110000
+MODHEAD  DC    C'&NM &SYSDATE &SYSTIME'                                 00120000
+MODSAVE  DC    18A(0)        SAVE AREA                                  00130000
+MODENT   STM   R14,R12,12(R13)  SAVE CALLER'S REGISTERS                 00140000
+         LR    &BASE(1),R15  MAKE FIRST OR ONLY BASE                    00150000
+&K       SETA  K'&BASE                                                  00160000
+&N       SETA  N'&BASE                                                  00170000
+&BASUS   SETC  '&BASE'                                                  00180000
+         AIF   ('&BASE'(1,1) NE '(').ONLY1                              00190000
+&BASUS   SETC  '&BASE'(2,&K-2)                                          00200000
+.ONLY1   AIF   (&N LT 2).NOMORE                                         00210000
+&LS      SETC  '&BASE(&N)'                                              00220000
+&PR      SETC  '&BASE(1)'                                               00230000
+         LA    &LS,2048                                                 00240000
+&I       SETA  1             R12 ALREADY DONE                           00250000
+.BASIC   AIF   (&I GE &N).NOMORE                                        00260000
+&I       SETA  &I+1                                                     00270000
+&OP      SETC  '&BASE(&I)'                                              00280000
+         LA    &OP,2048(&LS,&PR)                                        00290000
+&PR      SETC  '&OP'                                                    00300000
+         AGO   .BASIC                                                   00310000
+.NOMORE  ANOP  ,                                                        00320000
+         USING &NM,&BASUS                                               00330000
+         AIF   ('&LOADWK' EQ 'NO').NOWKLD                               00340000
+         L     R11,=V(DISASM00)  GET COMMON WORK AREA                   00350000
+.NOWKLD  USING DISASM00,R11                                             00360000
+         LA    R14,MODSAVE   GET LOCAL SAVE AREA                        00370000
+         ST    R14,8(,R13)   CHAIN DOWN                                 00380000
+         ST    R13,4(,R14)   CHAIN UP                                   00390000
+         LR    R13,R14       NEW SAVE AREA                              00400000
+&OP      SETC  '&BASE(1)'                                               00410000
+         AIF   ('&OP' EQ '12' OR '&OP' EQ 'R12').BASOK                  00420000
+         MNOTE 8,'ONLY R12 WORKS CORRECTLY FOR BASE(1), BUT NOT &OP '   00430000
+.BASOK   ANOP  ,                                                        00440000
+&I       SETA  1                                                        00450000
+.TESTLUP AIF   (&I GE &N).MEND                                          00460000
+&I       SETA  &I+1                                                     00470000
+&OP      SETC  '&BASE(&I)'                                              00480000
+         AIF   ('&OP' EQ '15' OR '&OP' EQ 'R15').BASERR                 00490000
+         AIF   ('&OP' EQ '14' OR '&OP' EQ 'R14').BASERR                 00500000
+         AIF   ('&OP' EQ '13' OR '&OP' EQ 'R13').BASERR                 00510000
+         AIF   ('&OP' EQ '12' OR '&OP' EQ 'R12').BASERR                 00520000
+         AIF   ('&OP' EQ '11' OR '&OP' EQ 'R11').BASERR                 00530000
+         AIF   ('&OP' EQ '1' OR '&OP' EQ 'R1').BASERR                   00540000
+         AIF   ('&OP' NE '0' AND '&OP' NE 'R0').TESTLUP                 00550000
+.BASERR  MNOTE 8,'&OP IS NOT ACCEPTABLE AS A BASE REGISTER'             00560000
+         AGO   .TESTLUP                                                 00570000
+.MEND    MEND  ,                                                        00580000

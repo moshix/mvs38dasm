@@ -1,0 +1,85 @@
+//HERC01A  JOB (Z),'ASM DASM',CLASS=A,MSGCLASS=A,MSGLEVEL=(1,1),        00000100
+// NOTIFY=HERC01,REGION=2M                                              00000200
+//********************************************************************* 00000300
+//*                                                                   * 00000400
+//*   THIS ASSEMBLES AND LINKS THE DISASSEMBLER (DISASM01)            * 00000500
+//*                                                                   * 00000600
+//*                                                                   * 00000700
+//********************************************************************* 00000800
+//ASMC    PROC MEM='?MEMBER?'                                           00000900
+//ASM     EXEC PGM=IFOX00,PARM='OBJECT,LIST,NODECK'                     00001000
+//SYSLIB   DD  DISP=SHR,DSN=SYS1.MACLIB,DCB=BLKSIZE=27920               00001100
+//         DD  DISP=SHR,DSN=SYS1.AMODGEN                                00001200
+//         DD  DISP=SHR,DSN=HERC01.DASM.SOURCE                          00001300
+//SYSUT1   DD  DSN=&&SYSUT1,UNIT=SYSDA,SPACE=(1700,(6000,1000)),        00001400
+//             SEP=(SYSLIB)                                             00001500
+//SYSUT2   DD  DSN=&&SYSUT2,UNIT=SYSDA,SPACE=(1700,(3000,500)),         00001600
+//             SEP=(SYSLIB,SYSUT1)                                      00001700
+//SYSUT3   DD  DSN=&&SYSUT3,UNIT=SYSDA,SPACE=(1700,(3000,500))          00001800
+//SYSTERM  DD  SYSOUT=*                                                 00001900
+//SYSPRINT DD  SYSOUT=*                                                 00002000
+//SYSPUNCH DD  SYSOUT=B                                                 00002100
+//SYSGO    DD  DSN=&&OBJSET,UNIT=SYSDA,SPACE=(80,(200,50)),             00002200
+//             DISP=(MOD,PASS)                                          00002300
+//SYSIN    DD  DISP=SHR,DSN=HERC01.DASM.SOURCE(&MEM)                    00002400
+//        PEND                                                          00002500
+//SUBCL   PROC MEM='?MEMBER?'                                           00002600
+//ASM     EXEC PGM=IFOX00,PARM='OBJECT,LIST,NODECK',REGION=4096K        00002700
+//SYSLIB   DD  DISP=SHR,DSN=SYS1.MACLIB,DCB=BLKSIZE=27920               00002800
+//         DD  DISP=SHR,DSN=SYS1.AMODGEN                                00002900
+//         DD  DISP=SHR,DSN=HERC01.DASM.SOURCE                          00003000
+//SYSTERM  DD  SYSOUT=*                                                 00003100
+//SYSPRINT DD  SYSOUT=*                                                 00003200
+//SYSPUNCH DD  DUMMY                                                    00003300
+//SYSUT1   DD  DSN=&&SYSUT1,UNIT=SYSDA,SPACE=(1700,(600,100)),          00003400
+//             SEP=(SYSLIB)                                             00003500
+//SYSUT2   DD  DSN=&&SYSUT2,UNIT=SYSDA,SPACE=(1700,(300,50)),           00003600
+//             SEP=(SYSLIB,SYSUT1)                                      00003700
+//SYSUT3   DD  DSN=&&SYSUT3,UNIT=SYSDA,SPACE=(1700,(300,50))            00003800
+//SYSGO    DD  DSN=&&OBJSET,UNIT=SYSDA,SPACE=(80,(200,50)),             00003900
+//             DISP=(NEW,PASS)                                          00004000
+//SYSIN    DD  DISP=SHR,DSN=HERC01.DASM.SOURCE(&MEM)                    00004100
+//LKED     EXEC PGM=IEWL,PARM=(LET,LIST,NCAL),                          00004200
+//             COND=(4,LT,ASM)                                          00004300
+//SYSLIN   DD  DSN=&&OBJSET,DISP=(OLD,DELETE)                           00004400
+//         DD  DDNAME=SYSIN                                             00004500
+//SYSLMOD  DD  DISP=SHR,DSN=SYS1.LINKLIB(&MEM)                          00004600
+//SYSUT1   DD  DSN=&&SYSUT1,UNIT=(SYSDA,SEP=(SYSLIN,SYSLMOD)),          00004700
+//             SPACE=(1024,(50,20))                                     00004800
+//SYSPRINT DD  SYSOUT=*                                                 00004900
+//        PEND                                                          00005000
+//M00     EXEC ASMC,MEM=DISASM00                                        00005100
+//M02     EXEC ASMC,MEM=DISASM02                                        00005200
+//M03     EXEC ASMC,MEM=DISASM03                                        00005300
+//M04     EXEC ASMC,MEM=DISASM04                                        00005400
+//M05     EXEC ASMC,MEM=DISASM05                                        00005500
+//M06     EXEC ASMC,MEM=DISASM06                                        00005600
+//M07     EXEC ASMC,MEM=DISASM07                                        00005700
+//M08     EXEC ASMC,MEM=DISASM08                                        00005800
+//M09     EXEC ASMC,MEM=DISASM09                                        00005900
+//M13     EXEC ASMC,MEM=DISASM13                                        00006000
+//M19     EXEC ASMC,MEM=DISASM19                                        00006100
+//M55     EXEC ASMC,MEM=DISASM55                                        00006200
+//MDB     EXEC ASMC,MEM=DISASMDB                                        00006300
+//MDT     EXEC ASMC,MEM=DISASMDT                                        00006400
+//MLS     EXEC ASMC,MEM=DISASMLS                                        00006500
+//MOP     EXEC ASMC,MEM=DISASMOP                                        00006600
+//MPR     EXEC ASMC,MEM=DISASMPR                                        00006700
+//MPU     EXEC ASMC,MEM=DISASMPU                                        00006800
+//ALINK   EXEC ASMFCL,PARM.ASM='OBJECT,LIST,NODECK'                     00006900
+//SYSLIB   DD  DISP=SHR,DSN=SYS1.MACLIB,DCB=BLKSIZE=27920               00007000
+//         DD  DISP=SHR,DSN=SYS1.AMODGEN                                00007100
+//         DD  DISP=SHR,DSN=HERC01.DASM.SOURCE                          00007200
+//SYSIN    DD  DISP=SHR,DSN=HERC01.DASM.SOURCE(DISASM01)                00007300
+//LKED.SYSLMOD DD DISP=SHR,DSN=SYS1.LINKLIB(DISASM01)                   00007400
+//*                                                                     00007500
+//*  OPTIONAL OPCODE TABLES (360 WITH SSM; 370 WITH BAS/BASR)           00007600
+//*                                                                     00007700
+//        EXEC SUBCL,MEM=DISOP360                                       00007800
+//        EXEC SUBCL,MEM=DISOP370                                       00007900
+//        EXEC SUBCL,MEM=DISOP390                                       00008000
+//        EXEC SUBCL,MEM=DISOPAPP                                       00008100
+//        EXEC SUBCL,MEM=DISOPAP2                                       00008200
+//        EXEC SUBCL,MEM=DISOP36S                                       00008300
+//        EXEC SUBCL,MEM=DISOP37B                                       00008400
+//                                                                      00008500

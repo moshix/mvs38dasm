@@ -1,0 +1,231 @@
+DA04     TITLE 'DISASM04 - ESD DATA PROCESSOR'                          00010000
+*--------------------------------------------------------------------*  00020000
+*                                                                    *  00030000
+*  Module name: DISASM04                                             *  00040000
+*                                                                    *  00050000
+*  Function:                                                         *  00060000
+*   Process ESD data as a sub-function of DISASM03.  ESD data are    *  00070000
+*   printed and saved in ESDDATA blocks for use in generating labels *  00080000
+*   and ENTRY statements.                                            *  00090000
+*                                                                    *  00100000
+*                                                                    *  00110000
+*--------------------------------------------------------------------*  00120000
+         COPY  DISASMGB                                                 00130000
+DISASM04 MODHEAD ,           ENTRY HOUSEKEEPING                 GP99140 00140000
+         ITRACE ID=ENTRY                                                00150000
+         TM    PRINTFG1,$PFESD       PRINTING CESD ?            GP99132 00160000
+         BZ    ESD0010               NO; DON'T NEED SUBHEAD     GP99132 00170000
+         MVC   COMMSUBH(SUBHEADL),SUBHEAD                       GP10066 00180000
+         LA    R1,SUBHEADL           SUBHEADING LENGTH                  00190000
+         STH   R1,COMMSUBL           SET LENGTH                         00200000
+         MVI   COMMSUBL,X'FF'        INDICATE NON-CENTERED              00210000
+         TM    D04FLAG,$SUBH         INITIAL SUB HEADING PRINTED?       00220000
+         BO    ESD0010               YES                                00230000
+         OI    D04FLAG,$SUBH         SET FLAG                           00240000
+         MVC   PRTDATA(MSG01L),MSG01 SET MESSAGE                        00250000
+         BAL   R10,PRT0000           PRINT MESSAGE                      00260000
+         MVC   PRTDATA(SUBHEADL),SUBHEAD                        GP10066 00270000
+         BAL   R10,PRT0000           PRINT MESSAGE                      00280000
+         SPACE 1                                                        00290000
+ESD0010  L     R3,COMMIO             I/O AREA ADDRESS           GP10074 00300000
+         MVC   SAVEESD,4(R3)         SAVE ESD ID OF FIRST ITEM          00310000
+         LH    R5,6(,R3)             SIZE OF ESD DATA                   00320000
+         SRL   R5,4                  COMPUTE NUMBER OF ESD ENTRIES      00330000
+         LA    R6,8(,R3)             FIRST ESD ITEM                     00340000
+         ITRACE ID=PROCESD,                                            +00350000
+               RDATA1=R5,            .. NUMBER OF ESD ENTRIES          +00360000
+               RDATA2=R6             .. FIRST ESD DATA ADDRESS          00370000
+         SPACE 1                                                        00380000
+*---------------------------------------------------------------------* 00390000
+*   LOOP THROUGH ESD ENTRIES; INSERT NEW ONE IN ESDNAME SEQUENCE      * 00400000
+*     FOR NON-NULL BLANK NAMES AND BLANK REQUEST, CREATE NAME         * 00410000
+*---------------------------------------------------------------------* 00420000
+ESD0040  LA    R0,ESDDATAL                                      GP99140 00430000
+         BAL   R14,GETMAIN           ACQUIRE STORAGE FOR NEW ESD DATA   00440000
+         ITRACE ID=NEWESD,                                             +00450000
+               RDATA1=R1             .. NEW ESD BLOCK'S ADDRESS         00460000
+         TM    COMMOPFG,$OFNOBLK     ADJUST BLANKS CSECTS?      GP10074 00470000
+         BZ    ESD0041               NO; NO CHANGE              GP10074 00480000
+         CLI   ESDTYPE-ESDNAME(R6),X'07'    NULL ?              GP10074 00490000
+         BE    ESD0041               YES; NO CHANGE             GP10074 00500000
+         CLC   ESDNAME-ESDNAME(L'ESDNAME,R6),COMMBLKS  EMPTY?   GP10074 00510000
+         BNE   ESD0041               NO; USE AS IS              GP10074 00520000
+         MVC   ESDNAME-ESDNAME(L'ESDNAME,R6),=X'F020202020202020'       00530000
+         LH    R0,SAVEESD            CURRENT ESD ID NUMBER      GP10074 00540000
+         CVD   R0,COMMDWRD           MAKE PACKED                GP10074 00550000
+         ED    ESDNAME-ESDNAME(L'ESDNAME,R6),COMMDWRD+4  FIX UP GP10074 00560000
+         MVC   ESDNAME-ESDNAME(3,R6),=C'PC#'                    GP10074 00570000
+ESD0041  LA    R2,COMMESD            ROOT OF ESD CHAIN          GP10074 00580000
+         USING ESDDATA,R4            DEFINE BASE                GP10074 00590000
+LOOPESD  LR    R4,R2                 ADVANCE                    GP10074 00600000
+         ICM   R2,15,ESDNEXT         IS THERE ANOTHER ?         GP10074 00610000
+         BZ    APPNDESD              NO; TACK NEW ONE ON END    GP10074 00620000
+         CLC   ESDNAME-ESDDATA(L'ESDNAME,R2),0(R6)    INSERT ?  GP10074 00630000
+         BL    LOOPESD               NO; TRY NEXT SLOT          GP10074 00640000
+APPNDESD ST    R1,ESDNEXT-ESDDATA(,R4)   FORWARD LINK TO NEW    GP10074 00650000
+         ST    R2,ESDNEXT-ESDDATA(,R1)   LINK TO LARGER         GP10074 00660000
+         LR    R4,R1                 SET NEW BLOCK ADDRESS              00670000
+         MVC   ESDEYE,ESD            SET EYECATCHER                     00680000
+         MVC   ESDNAME(ESDL),0(R6)   COPY ESD DATA                      00690000
+         CLC   ESDLEN,=X'004040'     OBJECT DECK LENGTH?        GP10074 00700000
+         BNE   *+10                    NO                       GP10074 00710000
+         XC    ESDLEN,ESDLEN         FIX UP                     GP10074 00720000
+         LH    R1,SAVEESD            CURRENT ESD ID NUMBER              00730000
+         STCM  R1,3,ESDID            SET ESD ID                         00740000
+         LA    R1,1(,R1)             ADD 1 TO ESD ID NUMBER             00750000
+         STH   R1,SAVEESD            SAVE UPDATED ID                    00760000
+         MVC   MSG02SYM,ESDNAME      SET NAME                           00770000
+         OC    MSG02SYM,COMMBLKS     FORCE AT LEAST X'40'S              00780000
+         LA    R1,ESDTBLE            FIRST ESD TYPE/DESCRIPTOR          00790000
+ESD0050  DS    0H                                                       00800000
+         CLI   0(R1),X'FF'           END OF TABLE?                      00810000
+         BE    ESD0060               YES                                00820000
+         CLC   ESDTYPE,0(R1)         DESCRIPTOR FOUND?                  00830000
+         BE    ESD0060               YES                                00840000
+         LA    R1,ESDTBLEL(,R1)      NEXT ESD DESCRIPTOR                00850000
+         B     ESD0050               LOOP                               00860000
+ESD0060  DS    0H                                                       00870000
+         MVC   MSG02TYP,1(R1)        SET ESD TYPE                       00880000
+         UNPK  MSG02ADR(7),ESDADDR(4)                                   00890000
+         TR    MSG02ADR,COMMHXTR     TRANSLATE TO PRINTABLE     GP99132 00900000
+         MVI   MSG02ADR+6,C' '       RESTORE BLANK                      00910000
+         UNPK  MSG02SEG(3),ESDSEG(2) UNPACK SEGMENT NUMBER              00920000
+         TR    MSG02SEG,COMMHXTR     TRANSLATE TO PRINTABLE     GP99132 00930000
+         MVI   MSG02SEG+2,C' '       RESTORE BLANK                      00940000
+         UNPK  MSG02LEN(7),ESDLEN(4) UNPACK LENGTH                      00950000
+         TR    MSG02LEN,COMMHXTR     TRANSLATE TO PRINTABLE     GP99132 00960000
+         MVI   MSG02LEN+6,C' '       RESTORE BLANK                      00970000
+         UNPK  MSG02ESD(5),ESDID(3)  UNPACK ESD ID                      00980000
+         TR    MSG02ESD,COMMHXTR     TRANSLATE TO PRINTABLE     GP99132 00990000
+         MVI   MSG02ESD+4,C' '       RESTORE BLANK                      01000000
+         MVC   MSG02MSG,COMMBLKS     CLEAR MESSAGE                      01010000
+         CLI   ESDTYPE,$ESDSD        EXTERNAL SYMBOL?                   01020000
+         BE    ESD0070               YES                                01030000
+         CLI   ESDTYPE,$ESDSD+128  NEW EXTERNAL SYMBOL?         GP13236 01040000
+         BE    ESD0070               YES                        GP13236 01050000
+         CLI   ESDTYPE,$ESDPC        PRIVATE CODE?                      01060000
+         BE    ESD0070               YES                        GP05095 01070000
+         CLI   ESDTYPE,$ESDPC1       "FIRST" PRIVATE CODE?      GP05095 01080000
+         BNE   ESD0090               NO                                 01090000
+ESD0070  DS    0H                                                       01100000
+         CLI   COMMCSNM,C' '         CSECT GIVEN?                       01110000
+         BNE   ESD0080               YES                                01120000
+         MVC   COMMCSNM,ESDNAME      SET NAME (WILL BE FIRST CSECT)     01130000
+ESD0080  DS    0H                                                       01140000
+         CLC   ESDNAME,COMMCSNM      CORRECT CSECT FOUND?               01150000
+         BNE   ESD0090               NO                                 01160000
+         ITRACE ID=CSECTFND                                             01170000
+         SR    R1,R1                 CLEAR REGISTER                     01180000
+         ICM   R1,7,ESDADDR          CSECT'S ADDRESS                    01190000
+         ST    R1,COMMCSAD           SET CSECT ADDRESS                  01200000
+         SR    R2,R2                 CLEAR REGISTER                     01210000
+         ICM   R2,7,ESDLEN           CSECT LENGTH                       01220000
+         ST    R2,COMMCSLN           SET CSECT LENGTH                   01230000
+         AR    R1,R2                 ADDRESS + LENGTH                   01240000
+         BCTR  R1,0                  MINUS 1                            01250000
+         ST    R1,COMMCSEA           SAVE ENDING ADDRESS                01260000
+         ST    R1,COMMCSEO           SAVE END BEFORE PADDING    GP10071 01270000
+         ITRACE ID=CSECTAD,DATA1=COMMCSAD,DATA2=COMMCSEA                01280000
+         LA    R0,32(,R2)            PREVENT 0C4 IN TEXT PRINTER        01290000
+         TM    COMMOPFG,$OFZERO      USE ZERO FILL ?            GP10066 01300000
+         BNZ   *+8                   YES; RETAIN 0 FILL         GP10066 01310000
+         MVI   COMMFILL,X'CC'        MAKE DS/ORG AREAS OBVIOUS  GP10018 01320000
+         BAL   R14,GETMAIN           ACQUIRE STORAGE FOR NEW BASE BLOCK 01330000
+         ST    R1,COMMTXT            SAVE TEXT'S STORAGE ADDRESS        01340000
+         MVI   COMMFILL,0            RESTORE NORMAL VALUE       GP10018 01350000
+         MVC   COMMESID,ESDID        SAVE ESD ID OF CSECT               01360000
+         OI    COMMFLAG,$CSECT       CSECT HAS BEEN FOUND               01370000
+         MVC   MSG02MSG,MSGMSG       SET MESSAGE                        01380000
+ESD0090  DS    0H                                                       01390000
+         MVC   PRTDATA(MSG02L),MSG02 SET MESSAGE                        01400000
+         BAL   R10,PRT0000           PRINT MESSAGE                      01410000
+         LA    R6,ESDL(,R6)          NEXT ESD DATA                      01420000
+         BCT   R5,ESD0040            LOOP                               01430000
+         B     EXIT0000                                                 01440000
+PRT0000  DS    0H                                                       01450000
+         TM    COMMFLAG,$ERROR       ERROR MESSAGE?             GP99132 01460000
+         BNZ   PRT0005               YES; PRINT IT              GP99132 01470000
+         TM    PRINTFG1,$PFESD       PRINT CSED DATA ?          GP99132 01480000
+         BNZ   PRT0005               YES                        GP99132 01490000
+         MVI   PRTDATA,C' '          JUST CLEAR                 GP99132 01500000
+         MVC   PRTDATA+1(L'PRTDATA-1),PRTDATA   PRINT BUFFER    GP99132 01510000
+         BR    R10                   JUST RETURN                GP99132 01520000
+PRT0005  BAL   R14,PRINTREC                                     GP99138 01530000
+         BR    R10                   EXIT                               01540000
+EXIT0000 DS    0H                                                       01550000
+         ITRACE ID=EXIT                                                 01560000
+         L     R13,4(,R13)           RESTORE REGISTER 13                01570000
+         LM    R14,R12,12(R13)       RESTORE ALL OTHER REGISTERS        01580000
+         SR    R15,R15               GIVE GOOD RETURN CODE              01590000
+         BR    R14                   RETURN TO CALLER                   01600000
+*---------------------------------------------------------------------* 01610000
+*                                                                     * 01620000
+*              WORK AREAS                                             * 01630000
+*                                                                     * 01640000
+*---------------------------------------------------------------------* 01650000
+SAVEESD  DC    H'0'                                                     01660000
+D04FLAG  DC    X'00'                                                    01670000
+$SUBH    EQU   X'80'                 INITIAL SUB HEADING PRINTED        01680000
+ESD      DC    CL8'ESD'                                                 01690000
+SUBHEAD  DC    CL07' '                                          GP10066 01700000
+         DC    CL08' SYMBOL '                                           01710000
+         DC    CL03' '                                                  01720000
+         DC    CL04'TYPE'                                               01730000
+         DC    CL02' '                                                  01740000
+         DC    CL06' ADDR '                                             01750000
+         DC    CL02' '                                                  01760000
+         DC    CL03'SEG'                                                01770000
+         DC    CL02' '                                                  01780000
+         DC    CL06'LENGTH'                                             01790000
+         DC    CL02' '                                                  01800000
+         DC    CL06'ESDID'                                              01810000
+SUBHEADL EQU   *-SUBHEAD                                                01820000
+MSG01    DC    55C'-'                                           GP10066 01830000
+         DC    CL23' EXTERNAL SYMBOL TABLE '                            01840000
+         DC    54C'-'                                           GP10066 01850000
+MSG01L   EQU   *-MSG01                                                  01860000
+MSG02    DS    0C                                                       01870000
+         DC    CL08' '                                                  01880000
+MSG02SYM DC    CL08' '                 EXTERNAL SYMBOL                  01890000
+         DC    CL02' '                                                  01900000
+MSG02TYP DC    CL04' '                 SYMBOL TYPE                      01910000
+         DC    CL02' '                                                  01920000
+MSG02ADR DC    CL06' '                 ADDRESS                          01930000
+         DC    CL02' '                                                  01940000
+MSG02SEG DC    CL02' '                 SEGMENT NUMBER                   01950000
+         DC    CL03' '                                                  01960000
+MSG02LEN DC    CL06' '                 LENGTH                           01970000
+         DC    CL02' '                                                  01980000
+MSG02ESD DC    CL04' '                 ESD ID                           01990000
+         DC    CL02' '                                                  02000000
+MSG02MSG DC    CL15' '                 MESSAGE                          02010000
+MSG02L   EQU   *-MSG02                                                  02020000
+MSGMSG   DC    CL15'REQUESTED CSECT'                                    02030000
+ESDTBLE  DS    0C                                                       02040000
+         DC    AL1($ESDSD),CL4' SD'                                     02050000
+ESDTBLEL EQU   *-ESDTBLE                                                02060000
+         DC    AL1($ESDSD+128),CL4' SD'     FUNNY X390 SD       GP11013 02070000
+         DC    AL1($ESDER),CL4' ER'                                     02080000
+         DC    AL1($ESDLR),CL4' LR'                                     02090000
+         DC    AL1($ESDPC),CL4' PC'                                     02100000
+         DC    AL1($ESDPC1),CL4' PC'                            GP05095 02110000
+         DC    AL1($ESDCM),CL4' CM'                                     02120000
+         DC    AL1($ESDPR),CL4' PS'                                     02130000
+         DC    AL1($ESDNULL),CL4'NULL'                                  02140000
+         DC    AL1($ESDWX),CL4' WX '                                    02150000
+         DC    AL1($ESDOV),CL4' OV '                                    02160000
+         DC    X'FF',CL4'UNKN'                                          02170000
+*---------------------------------------------------------------------* 02180000
+*                                                                     * 02190000
+*              LITERALS                                               * 02200000
+*                                                                     * 02210000
+*---------------------------------------------------------------------* 02220000
+         LTORG                                                          02230000
+         COPY  DISASMDA                                                 02240000
+*---------------------------------------------------------------------* 02250000
+*                                                                     * 02260000
+*              COMMON DATA MAP                                        * 02270000
+*                                                                     * 02280000
+*---------------------------------------------------------------------* 02290000
+DISASM00 DISASMCM TYPE=DSECT                                            02300000
+         END  DISASM04                                                  02310000

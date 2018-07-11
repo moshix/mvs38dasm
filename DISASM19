@@ -1,0 +1,123 @@
+DA19     TITLE 'DISASM19 - CROSS-REFERENCE FOR GENERATED SOURCE'        00010000
+         COPY   DISASMGB                                                00020000
+*--------------------------------------------------------------------*  00030000
+*                                                                    *  00040000
+*  Module name: DISASM19                                             *  00050000
+*                                                                    *  00060000
+*  Function:                                                         *  00070000
+*   BUILD AND PRINT LABEL CROSS-REFERENCE FOR GENERATED SOURCE       *  00080000
+*                                                                    *  00090000
+*--------------------------------------------------------------------*  00100000
+DISASM19 MODHEAD BASE=(R12,R10)   ENTRY HOUSEKEEPING                    00110000
+         ITRACE ID=ENTRY                                                00120000
+         TM    PRINTFG2,$PFXRF       PROCESS CROSS-REFERECNE?           00130000
+         BZ    EXIT000               NO                                 00140000
+         MVC   COMMSUBH(SUBHEADL),SUBHEAD                               00150000
+         LA    R1,SUBHEADL           SUBHEADING LENGTH                  00160000
+         STH   R1,COMMSUBL           SET LENGTH                         00170000
+         MVI   COMMSUBL,X'FF'        SET NON-CENTERED INDICATOR         00180000
+         MVI   PRTCMD,$PRTHEAD       SET COMMAND                        00190000
+         BAL   R14,PRINTDAT          PRINT SUBHEADER                    00200000
+GEN0015  DS    0H                                                       00210000
+*********************************************************************** 00220000
+**                                                                   ** 00230000
+**   LABEL CHAIN IS IN SEQUENCE BY DISPLACEMENT.                     ** 00240000
+**     WE NEED TO SORT (CRUDELY) BY LABEL                            ** 00250000
+**                                                                   ** 00260000
+*********************************************************************** 00270000
+SORTLOOP SR    R3,R3         SET NO-SWAP SWITCH                         00280000
+         LA    R5,COMMLABL   GET START OF CHAIN POINTER                 00290000
+ITEMLOOP LTR   R4,R5                                                    00300000
+         BZ    SORTDONE                                                 00310000
+         ICM   R5,15,LABLNEXT-LABLDSCT(R4)  ANOTHER?                    00320000
+         BZ    SORTDONE      NOT ON THIS PASS                           00330000
+         USING LABLDSCT,R5   DECLARE IT                                 00340000
+         ICM   R6,15,LABLNEXT-LABLDSCT(R5)  FOLLOWER?                   00350000
+         BZ    SORTDONE      NOT ON THIS PASS                           00360000
+         CLC   LABLNAME,LABLNAME-LABLDSCT(R6)                           00370000
+         BNH   ITEMLOOP                                                 00380000
+         L     R0,LABLNEXT-LABLDSCT(,R6)                                00390000
+         ST    R0,LABLNEXT-LABLDSCT(,R5)                                00400000
+         ST    R6,LABLNEXT-LABLDSCT(,R4)                                00410000
+         ST    R5,LABLNEXT-LABLDSCT(,R6)                                00420000
+         LR    R3,R4         SET SWAP SWITCH                            00430000
+         LR    R5,R6         USE LOWER VALUE                            00440000
+         B     ITEMLOOP      LAZY                                       00450000
+SORTDONE LTR   R3,R3         DID WE SWAP ?                              00460000
+         BNZ   SORTLOOP      YES; NEED TO RUN CHAIN AGAIN               00470000
+*********************************************************************** 00480000
+**                                                                   ** 00490000
+**   RUN THROUGH THE LABEL CHAIN, FORMAT THE COMMON DATA, AND THEN   ** 00500000
+**     FOLLOW THE CROSS-REFERENCE CHAIN TO PRINT ONE OR MORE LINES.  ** 00510000
+**                                                                   ** 00520000
+*********************************************************************** 00530000
+         LA    R5,COMMLABL   POINT TO LABEL CHAIN                       00540000
+         USING LABLDSCT,R5   DECLARE IT                                 00550000
+MAINLOOP ICM   R5,15,LABLNEXT  GET NEXT ENTRY                           00560000
+         BZ    EXIT000       OR OUT                                     00570000
+         MVC   OUTNAME,LABLNAME                                         00580000
+         UNPK  OUTDISP(9),LABLDISP(5)                                   00590000
+         TR    OUTDISP,COMMHXTR                                         00600000
+         MVI   OUTDISP+8,C' '                                           00610000
+         OC    LABLSTMT,LABLSTMT  DEFINED?                              00620000
+         BNZ   DEFLABEL      YES                                        00630000
+         MVC   OUTSTMT,=CL7'*UNDEF*'                                    00640000
+         B     NEWLINE                                                  00650000
+DEFLABEL UNPK  COMMDWRD,LABLSTMT                                        00660000
+         MVC   OUTSTMT,COMMDWRD+1                                       00670000
+NEWLINE  LA    R4,LABLXREF   POINT TO XREF CHAIN                        00680000
+NEWCONT  LA    R7,OUTFIELD   POINT TO OUTPUT AREA               GP05095 00690000
+         LA    R6,NUMFIELD   GET NUMBER OF ENTRIES TO DO                00700000
+REFLOOP  ICM   R4,15,0(R4)   REFERENCE ENTRY?                           00710000
+         BZ    REFDONE       NO MORE                                    00720000
+         CLC   LABLSTMT,4(R4)  SAME AS DEFINITION?                      00730000
+         BE    REFSKIP       YES; ONLY DO ONE                           00740000
+         UNPK  COMMDWRD,4(5,R4)  GET REFERENCE                          00750000
+         MVC   OUTFIELD-OUTFIELD(L'OUTSTMT,R7),COMMDWRD+1               00760000
+         LA    R7,L'OUTFIELD(,R7)                                       00770000
+REFSKIP  BCT   R6,REFLOOP                                               00780000
+         BAL   R14,PRINTREC  PRINT THIS LINE                            00790000
+         B     NEWCONT       START ANOTHER LINE                 GP05095 00800000
+         SPACE 1                                                        00810000
+REFDONE  CLC   PRTDATA,PRTDATA-1  ALREADY PRINTED?                      00820000
+         BE    MAINLOOP      YES; DO NEXT LABEL                         00830000
+         BAL   R14,PRINTREC  ELSE PRINT IT                              00840000
+         B     MAINLOOP      AND GET ANOTHER LABEL                      00850000
+         SPACE 1                                                        00860000
+EXIT000  ITRACE ID=EXIT                                                 00870000
+         L     R13,4(,R13)           RESTORE REGISTER 13                00880000
+         LM    R14,R12,12(R13)       RESTORE ALL OTHER REGISTERS        00890000
+         SR    R15,R15               GIVE GOOD RETURN CODE              00900000
+         BR    R14                   RETURN TO CALLER                   00910000
+         SPACE 2                                                        00920000
+         LTORG                                                          00930000
+         SPACE 2                                                        00940000
+* ------------------------------------------------------------------- * 00950000
+*     DATA                                                            * 00960000
+* ------------------------------------------------------------------- * 00970000
+SUBHEAD  DC    CL08' LABEL '                                            00980000
+         DC    CL02' '                                                  00990000
+         DC    CL08'  DISP  '                                           01000000
+         DC    CL02' '                                                  01010000
+         DC    CL05' STMT'                                              01020000
+         DC    CL02' '                                                  01030000
+         DC    C'REFERENCES'                                            01040000
+SUBHEADL EQU   *-SUBHEAD                                                01050000
+         SPACE 2                                                        01060000
+         COPY  DISASMDA                                                 01070000
+         SPACE 2                                                        01080000
+*---------------------------------------------------------------------* 01090000
+*                                                                     * 01100000
+*              COMMON DATA MAP                                        * 01110000
+*                                                                     * 01120000
+*---------------------------------------------------------------------* 01130000
+DISASM00 DISASMCM TYPE=DSECT                                            01140000
+         SPACE 1                                                        01150000
+DISASM00 DSECT ,                                                        01160000
+         ORG   PRTDATA                                                  01170000
+OUTNAME  DC    CL8' ',CL2' '                                            01180000
+OUTDISP  DC    CL8' ',CL2' '                                            01190000
+OUTSTMT  DC    CL5' ',CL2' '                                            01200000
+OUTFIELD DC    ((132+1-(OUTFIELD-PRTDATA))/6)CL(L'OUTSTMT+1)' '         01210000
+NUMFIELD EQU   (*-OUTFIELD)/L'OUTFIELD                                  01220000
+         END  DISASM19                                                  01230000

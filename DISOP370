@@ -1,0 +1,238 @@
+OP370     TITLE 'DISOP370 - OPCODE TABLE FOR S/370'                     00010000
+*--------------------------------------------------------------------*  00020000
+*                                                                    *  00030000
+*  Module name: DISOP370  (modified alias of 370 table for default)  *  00040000
+*                                                                    *  00050000
+*  Function:                                                         *  00060000
+*     Define valid machine opcodes for System 370                    *  00070000
+*                                                                    *  00080000
+*  TWO-BYTE OPCODE SUPPORT ADDED:                                    *  00090000
+*                                                                    *  00100000
+*     ADDRESS FOR EACH TWO-BYTE OPCODE IS IN A SECONDARY TABLE,      *  00110000
+*     GENERATED WITH A TYPE=DEFINE. OPERANDS ARE:                    *  00120000
+*       1) MACHINE CODE IN HEX                                       *  00130000
+*       2) AND FLAG FOR SECOND BYTE                                  *  00140000
+*       3) RIGHT SHIFT AMOUNT FOR MASKED VALUE                       *  00150000
+*       4) LARGEST MASKED/SHIFTED VALUE                              *  00160000
+*                                                                    *  00170000
+*  TABLES ARE IDENTIFIED BY X'80'+ADDRESS                            *  00180000
+*                                                                    *  00190000
+*--------------------------------------------------------------------*  00200000
+         COPY   DISASMGB                                                00210000
+DISOP370 CSECT ,             DEFAULT TABLE                      GP10015 00220000
+         ORG   DISOP370+(256*4)                                         00230000
+* ------------------------------------------------------------------- * 00240000
+*        OPCODE TABLE FOR S/370 (WITHOUT SSM)                         * 00250000
+* ------------------------------------------------------------------- * 00260000
+         OPCODE 00,DC,0                   DUMMY ENTRY FOR DCs           00270000
+         OPCODE 04,SPM,$OPRR4,MASK=000F                         GP10018 00280000
+         OPCODE 05,BALR,$OPRR1,'CALL'                                   00290000
+         OPCODE 06,BCTR,$OPRR1,'LOOP'                                   00300000
+         OPCODE 07,BCR,$OPRR3,FLAGS=$OPEXT                              00310000
+         OPCODE 08,SSK,$OPRR1                                           00320000
+         OPCODE 09,ISK,$OPRR1                                           00330000
+         OPCODE 0A,SVC,$OPRR2,'SVC',FLAGS=$OPSVC                GP10035 00340000
+*37B*    OPCODE 0D,BASR,$OPRR1                                          00350000
+         OPCODE 0E,MVCL,$OPRR1,FLAGS=$OPCCA,MASK=0011           GP10025 00360000
+         OPCODE 0F,CLCL,$OPRR1,FLAGS=$OPCCA,MASK=0011           GP10025 00370000
+         OPCODE 10,LPR,$OPRR1,FLAGS=$OPCCA                              00380000
+         OPCODE 11,LNR,$OPRR1,FLAGS=$OPCCA                              00390000
+         OPCODE 12,LTR,$OPRR1,FLAGS=$OPCCA                              00400000
+         OPCODE 13,LCR,$OPRR1,FLAGS=$OPCCA                              00410000
+         OPCODE 14,NR,$OPRR1,FLAGS=$OPCCL                               00420000
+         OPCODE 15,CLR,$OPRR1,FLAGS=$OPCCC                              00430000
+         OPCODE 16,OR,$OPRR1,FLAGS=$OPCCL                               00440000
+         OPCODE 17,XR,$OPRR1,FLAGS=$OPCCL                               00450000
+         OPCODE 18,LR,$OPRR1                                            00460000
+         OPCODE 19,CR,$OPRR1,FLAGS=$OPCCC                               00470000
+         OPCODE 1A,AR,$OPRR1,FLAGS=$OPCCA                               00480000
+         OPCODE 1B,SR,$OPRR1,FLAGS=$OPCCA                               00490000
+         OPCODE 1C,MR,$OPRR1,MASK=0010                          GP10072 00500000
+         OPCODE 1D,DR,$OPRR1,MASK=0010                          GP10072 00510000
+         OPCODE 1E,ALR,$OPRR1,FLAGS=$OPCCA                              00520000
+         OPCODE 1F,SLR,$OPRR1,FLAGS=$OPCCA                              00530000
+         OPCODE 20,LPDR,$OPRR1,FLAGS=$OPCCA,MASK=0099           GP10018 00540000
+         OPCODE 21,LNDR,$OPRR1,FLAGS=$OPCCA,MASK=0099           GP10018 00550000
+         OPCODE 22,LTDR,$OPRR1,FLAGS=$OPCCA,MASK=0099           GP10018 00560000
+         OPCODE 23,LCDR,$OPRR1,FLAGS=$OPCCA,MASK=0099           GP10018 00570000
+         OPCODE 24,HDR,$OPRR1,MASK=0099                         GP10018 00580000
+         OPCODE 25,LRDR,$OPRR1,MASK=0099                        GP10018 00590000
+         OPCODE 26,MXR,$OPRR1,MASK=0099                         GP10018 00600000
+         OPCODE 27,MXDR,$OPRR1,MASK=0099                        GP10018 00610000
+         OPCODE 28,LDR,$OPRR1,MASK=0099                         GP10018 00620000
+         OPCODE 29,CDR,$OPRR1,FLAGS=$OPCCC,MASK=0099            GP10018 00630000
+         OPCODE 2A,ADR,$OPRR1,FLAGS=$OPCCA,MASK=0099            GP10018 00640000
+         OPCODE 2B,SDR,$OPRR1,FLAGS=$OPCCA,MASK=0099            GP10018 00650000
+         OPCODE 2C,MDR,$OPRR1,MASK=0099                         GP10018 00660000
+         OPCODE 2D,DDR,$OPRR1,MASK=0099                         GP10018 00670000
+         OPCODE 2E,AWR,$OPRR1,FLAGS=$OPCCA,MASK=0099            GP10018 00680000
+         OPCODE 2F,SWR,$OPRR1,FLAGS=$OPCCA,MASK=0099            GP10018 00690000
+         OPCODE 30,LPER,$OPRR1,FLAGS=$OPCCA,MASK=0099           GP10018 00700000
+         OPCODE 31,LNER,$OPRR1,FLAGS=$OPCCA,MASK=0099           GP10018 00710000
+         OPCODE 32,LTER,$OPRR1,FLAGS=$OPCCA,MASK=0099           GP10018 00720000
+         OPCODE 33,LCER,$OPRR1,FLAGS=$OPCCA,MASK=0099           GP10018 00730000
+         OPCODE 34,HER,$OPRR1,MASK=0099                         GP10018 00740000
+         OPCODE 35,LRER,$OPRR1,MASK=0099                        GP10018 00750000
+         OPCODE 36,AXR,$OPRR1,FLAGS=$OPCCA,MASK=0099            GP10018 00760000
+         OPCODE 37,SXR,$OPRR1,FLAGS=$OPCCA,MASK=0099            GP10018 00770000
+         OPCODE 38,LER,$OPRR1,MASK=0099                         GP10018 00780000
+         OPCODE 39,CER,$OPRR1,FLAGS=$OPCCA,MASK=0099            GP10018 00790000
+         OPCODE 3A,AER,$OPRR1,FLAGS=$OPCCA,MASK=0099            GP10018 00800000
+         OPCODE 3B,SER,$OPRR1,FLAGS=$OPCCA,MASK=0099            GP10018 00810000
+         OPCODE 3C,MER,$OPRR1,MASK=0099                         GP10018 00820000
+         OPCODE 3D,DER,$OPRR1,MASK=0099                         GP10018 00830000
+         OPCODE 3E,AUR,$OPRR1,FLAGS=$OPCCA,MASK=0099            GP10018 00840000
+         OPCODE 3F,SUR,$OPRR1,FLAGS=$OPCCA,MASK=0099            GP10018 00850000
+         OPCODE 40,STH,$OPRX,FLAGS=$OPREF                               00860000
+         OPCODE 41,LA,$OPRX,FLAGS=$OPREF                                00870000
+         OPCODE 42,STC,$OPRX,FLAGS=$OPREF                               00880000
+         OPCODE 43,IC,$OPRX,FLAGS=$OPREF                                00890000
+         OPCODE 44,EX,$OPRX,FLAGS=$OPREF                                00900000
+         OPCODE 45,BAL,$OPRX,'CALL',FLAGS=$OPREF                        00910000
+         OPCODE 46,BCT,$OPRX,'LOOP',FLAGS=$OPREF                        00920000
+         OPCODE 47,BC,$OPRX,FLAGS=$OPEXT+$OPREF                         00930000
+         OPCODE 48,LH,$OPRX,FLAGS=$OPREF                                00940000
+         OPCODE 49,CH,$OPRX,FLAGS=$OPREF+$OPCCC                         00950000
+         OPCODE 4A,AH,$OPRX,FLAGS=$OPREF+$OPCCA                         00960000
+         OPCODE 4B,SH,$OPRX,FLAGS=$OPREF+$OPCCA                         00970000
+         OPCODE 4C,MH,$OPRX,FLAGS=$OPREF                                00980000
+*37B*    OPCODE 4D,BAS,$OPRX,FLAGS=$OPREF                               00990000
+         OPCODE 4E,CVD,$OPRX,FLAGS=$OPREF                               01000000
+         OPCODE 4F,CVB,$OPRX,FLAGS=$OPREF                               01010000
+         OPCODE 50,ST,$OPRX,FLAGS=$OPREF                                01020000
+         OPCODE 54,N,$OPRX,FLAGS=$OPREF+$OPCCL                          01030000
+         OPCODE 55,CL,$OPRX,FLAGS=$OPREF+$OPCCC                         01040000
+         OPCODE 56,O,$OPRX,FLAGS=$OPREF+$OPCCL                          01050000
+         OPCODE 57,X,$OPRX,FLAGS=$OPREF+$OPCCL                          01060000
+         OPCODE 58,L,$OPRX,FLAGS=$OPREF                                 01070000
+         OPCODE 59,C,$OPRX,FLAGS=$OPREF+$OPCCC                          01080000
+         OPCODE 5A,A,$OPRX,FLAGS=$OPREF+$OPCCA                          01090000
+         OPCODE 5B,S,$OPRX,FLAGS=$OPREF+$OPCCA                          01100000
+         OPCODE 5C,M,$OPRX,FLAGS=$OPREF,MASK=00100000           GP10072 01110000
+         OPCODE 5D,D,$OPRX,FLAGS=$OPREF,MASK=00100000           GP10072 01120000
+         OPCODE 5E,AL,$OPRX,FLAGS=$OPREF+$OPCCA                         01130000
+         OPCODE 5F,SL,$OPRX,FLAGS=$OPREF+$OPCCA                         01140000
+         OPCODE 60,STD,$OPRX,FLAGS=$OPREF,MASK=00900000         GP10018 01150000
+         OPCODE 67,MXD,$OPRX,FLAGS=$OPREF,MASK=00900000         GP10018 01160000
+         OPCODE 68,LD,$OPRX,FLAGS=$OPREF,MASK=00900000          GP10018 01170000
+         OPCODE 69,CD,$OPRX,FLAGS=$OPREF+$OPCCC,MASK=00900000   GP10018 01180000
+         OPCODE 6A,AD,$OPRX,FLAGS=$OPREF+$OPCCA,MASK=00900000   GP10018 01190000
+         OPCODE 6B,SD,$OPRX,FLAGS=$OPREF+$OPCCA,MASK=00900000   GP10018 01200000
+         OPCODE 6C,MD,$OPRX,FLAGS=$OPREF,MASK=00900000          GP10018 01210000
+         OPCODE 6D,DD,$OPRX,FLAGS=$OPREF,MASK=00900000          GP10018 01220000
+         OPCODE 6E,AW,$OPRX,FLAGS=$OPREF,MASK=00900000          GP10018 01230000
+         OPCODE 6F,SW,$OPRX,FLAGS=$OPREF+$OPCCA,MASK=00900000   GP10018 01240000
+         OPCODE 70,STE,$OPRX,FLAGS=$OPREF,MASK=00900000         GP10018 01250000
+         OPCODE 78,LE,$OPRX,FLAGS=$OPREF,MASK=00900000          GP10018 01260000
+         OPCODE 79,CE,$OPRX,FLAGS=$OPREF+$OPCCC,MASK=00900000   GP10018 01270000
+         OPCODE 7A,AE,$OPRX,FLAGS=$OPREF+$OPCCA,MASK=00900000   GP10018 01280000
+         OPCODE 7B,SE,$OPRX,FLAGS=$OPREF+$OPCCA,MASK=00900000   GP10018 01290000
+         OPCODE 7C,ME,$OPRX,FLAGS=$OPREF,MASK=00900000          GP10018 01300000
+         OPCODE 7D,DE,$OPRX,FLAGS=$OPREF,MASK=00900000          GP10018 01310000
+         OPCODE 7E,AU,$OPRX,FLAGS=$OPREF+$OPCCA,MASK=00900000   GP10018 01320000
+         OPCODE 7F,SU,$OPRX,FLAGS=$OPREF+$OPCCA,MASK=00900000   GP10018 01330000
+*   SSM PRODUCES MANY FALSE INSTRUCTIONS FOR 31-BIT ADCONS              01340000
+*        OPCODE 80,SSM,$OPS,FLAGS=$OPREF,MASK=00FF0000          GP10018 01350000
+         OPCODE 82,LPSW,$OPS,FLAGS=$OPREF,MASK=00FF0000         GP10018 01360000
+         OPCODE 83,DIAG,$OPRSI                                          01370000
+*360*    OPCODE 84,WRD,$OPRSI,MASK=00FF                         GP10018 01380000
+*360*    OPCODE 85,RDD,$OPRSI,MASK=00FF                         GP10018 01390000
+         OPCODE 86,BXH,$OPRS2,FLAGS=$OPREF                              01400000
+         OPCODE 87,BXLE,$OPRS2,FLAGS=$OPREF                             01410000
+         OPCODE 88,SRL,$OPRS1,MASK=000F0000                     GP10018 01420000
+         OPCODE 89,SLL,$OPRS1,MASK=000F0000                     GP10018 01430000
+         OPCODE 8A,SRA,$OPRS1,FLAGS=$OPCCA,MASK=000F0000        GP10018 01440000
+         OPCODE 8B,SLA,$OPRS1,FLAGS=$OPCCA,MASK=000F0000        GP10018 01450000
+         OPCODE 8C,SRDL,$OPRS1,MASK=000F0000                    GP10018 01460000
+         OPCODE 8D,SLDL,$OPRS1,MASK=000F0000                    GP10018 01470000
+         OPCODE 8E,SRDA,$OPRS1,FLAGS=$OPCCA,MASK=000F0000       GP10018 01480000
+         OPCODE 8F,SLDA,$OPRS1,FLAGS=$OPCCA,MASK=000F0000       GP10018 01490000
+         OPCODE 90,STM,$OPRS2,FLAGS=$OPREF                              01500000
+         OPCODE 91,TM,$OPSI,FLAGS=$OPREF+$OPCCL                         01510000
+         OPCODE 92,MVI,$OPSI,FLAGS=$OPREF                               01520000
+         OPCODE 93,TS,$OPS,FLAGS=$OPREF+$OPCCA,MASK=00FF0000    GP10018 01530000
+         OPCODE 94,NI,$OPSI,FLAGS=$OPREF+$OPCCL                         01540000
+         OPCODE 95,CLI,$OPSI,FLAGS=$OPREF+$OPCCC                        01550000
+         OPCODE 96,OI,$OPSI,FLAGS=$OPREF+$OPCCL                         01560000
+         OPCODE 97,XI,$OPSI,FLAGS=$OPREF+$OPCCL                         01570000
+         OPCODE 98,LM,$OPRS2,FLAGS=$OPREF                               01580000
+         OPCODE AC,STNSM,$OPSI,FLAGS=$OPREF                             01590000
+         OPCODE AD,STOSM,$OPSI,FLAGS=$OPREF                             01600000
+         OPCODE AE,SIGP,$OPRS2,FLAGS=$OPCCA                             01610000
+         OPCODE AF,MC,$OPSI                                             01620000
+         OPCODE B1,LRA,$OPRX,FLAGS=$OPREF+$OPCCA                        01630000
+TABLEB2  OPCODE B2,X'FF',0,255,TYPE=TABLE NO MASK, NO SHIFT, MAX = 256  01640000
+         OPCODE B202,STIDP,$OPS,FLAGS=$OPREF                    GP05204 01650000
+         OPCODE B204,SCK,$OPS,FLAGS=$OPREF+$OPCCL               GP05204 01660000
+         OPCODE B205,STCK,$OPS,FLAGS=$OPREF+$OPCCL              GP99137 01670000
+         OPCODE B206,SCKC,$OPS,FLAGS=$OPREF                     GP05204 01680000
+         OPCODE B207,STCKC,$OPS,FLAGS=$OPREF                    GP05204 01690000
+         OPCODE B208,SPT,$OPS,FLAGS=$OPREF                      GP05204 01700000
+         OPCODE B209,STPT,$OPS,FLAGS=$OPREF                     GP05204 01710000
+         OPCODE B20A,SPKA,$OPS,FLAGS=$OPREF                     GP05204 01720000
+         OPCODE B20B,IPK,$OPS,FLAGS=$OPREF,MASK=0000FFFF        GP10018 01730000
+         OPCODE B20D,PTLB,$OPS,FLAGS=$OPREF,MASK=0000FFFF       GP10018 01740000
+         OPCODE B210,SPX,$OPS,FLAGS=$OPREF                      GP05204 01750000
+         OPCODE B211,STPX,$OPS,FLAGS=$OPREF                     GP05204 01760000
+         OPCODE B212,STAP,$OPS,FLAGS=$OPREF                     GP05204 01770000
+         OPCODE B213,RRB,$OPS,FLAGS=$OPREF                      GP05204 01780000
+         OPCODE B6,STCTL,$OPRS2,FLAGS=$OPREF                            01790000
+         OPCODE B7,LCTL,$OPRS2,FLAGS=$OPREF                             01800000
+         OPCODE BA,CS,$OPRS2,FLAGS=$OPREF+$OPCCC                        01810000
+         OPCODE BB,CDS,$OPRS2,FLAGS=$OPREF+$OPCCC                       01820000
+         OPCODE BD,CLM,$OPRS3,FLAGS=$OPREF+$OPCCC                       01830000
+         OPCODE BE,STCM,$OPRS3,FLAGS=$OPREF                             01840000
+         OPCODE BF,ICM,$OPRS3,FLAGS=$OPREF+$OPCCA                       01850000
+         OPCODE D1,MVN,$OPSS1,FLAGS=$OPREF                              01860000
+         OPCODE D2,MVC,$OPSS1,FLAGS=$OPREF                              01870000
+         OPCODE D3,MVZ,$OPSS1,FLAGS=$OPREF                              01880000
+         OPCODE D4,NC,$OPSS1,FLAGS=$OPREF+$OPCCL                        01890000
+         OPCODE D5,CLC,$OPSS1,FLAGS=$OPREF+$OPCCC                       01900000
+         OPCODE D6,OC,$OPSS1,FLAGS=$OPREF+$OPCCL                        01910000
+         OPCODE D7,XC,$OPSS1,FLAGS=$OPREF+$OPCCL                        01920000
+         OPCODE DC,TR,$OPSS1,FLAGS=$OPREF                               01930000
+         OPCODE DD,TRT,$OPSS1,FLAGS=$OPREF+$OPCCA                       01940000
+         OPCODE DE,ED,$OPSS1,FLAGS=$OPREF+$OPCCA                        01950000
+         OPCODE DF,EDMK,$OPSS1,FLAGS=$OPREF+$OPCCA              GP09181 01960000
+*                                                                       01970000
+*   TO AVOID GETTING SRP EXPANSION THAT WON'T ASSEMBLE, WE CHEAT A      01980000
+*   BIT AND DEFINE IT AS 10 DISTINCT INSTRUCTIONS, EXCLUDING THE        01990000
+*   INVALID ONES (ROUND NYBBLE > 9)                                     02000000
+*                                                                       02010000
+*CHEAT*  OPCODE F0,SRP,$OPSS4,FLAGS=$OPREF+$OPCCA               GP10155 02020000
+TABLEF0  OPCODE F0,X'0F',0,16,TYPE=TABLE                        GP10155 02030000
+   OPCODE F000,SRP,$OPSS4,FLAGS=$OPREF+$OPCCA,MASK=00000000FF00 GP10155 02040000
+   OPCODE F001,SRP,$OPSS4,FLAGS=$OPREF+$OPCCA,MASK=00000000FF00 GP10155 02050000
+   OPCODE F002,SRP,$OPSS4,FLAGS=$OPREF+$OPCCA,MASK=00000000FF00 GP10155 02060000
+   OPCODE F003,SRP,$OPSS4,FLAGS=$OPREF+$OPCCA,MASK=00000000FF00 GP10155 02070000
+   OPCODE F004,SRP,$OPSS4,FLAGS=$OPREF+$OPCCA,MASK=00000000FF00 GP10155 02080000
+   OPCODE F005,SRP,$OPSS4,FLAGS=$OPREF+$OPCCA,MASK=00000000FF00 GP10155 02090000
+   OPCODE F006,SRP,$OPSS4,FLAGS=$OPREF+$OPCCA,MASK=00000000FF00 GP10155 02100000
+   OPCODE F007,SRP,$OPSS4,FLAGS=$OPREF+$OPCCA,MASK=00000000FF00 GP10155 02110000
+   OPCODE F008,SRP,$OPSS4,FLAGS=$OPREF+$OPCCA,MASK=00000000FF00 GP10155 02120000
+   OPCODE F009,SRP,$OPSS4,FLAGS=$OPREF+$OPCCA,MASK=00000000FF00 GP10155 02130000
+         OPCODE F1,MVO,$OPSS2,FLAGS=$OPREF                              02140000
+         OPCODE F2,PACK,$OPSS2,FLAGS=$OPREF                             02150000
+         OPCODE F3,UNPK,$OPSS2,FLAGS=$OPREF                             02160000
+         OPCODE F8,ZAP,$OPSS2,FLAGS=$OPREF+$OPCCA                       02170000
+         OPCODE F9,CP,$OPSS2,FLAGS=$OPREF+$OPCCC                        02180000
+         OPCODE FA,AP,$OPSS2,FLAGS=$OPREF+$OPCCA                        02190000
+         OPCODE FB,SP,$OPSS2,FLAGS=$OPREF+$OPCCA                        02200000
+         OPCODE FC,MP,$OPSS2,FLAGS=$OPREF                               02210000
+         OPCODE FD,DP,$OPSS2,FLAGS=$OPREF                               02220000
+* ------------------------------------------------------------------- * 02230000
+*                                                                     * 02240000
+*        INDEX TO OPCODE TABLE                                        * 02250000
+*                                                                     * 02260000
+* ------------------------------------------------------------------- * 02270000
+         ORG    DISOP370+0                                              02280000
+OPINDEX  DS     0A                                                      02290000
+         OPCODE TYPE=INDEX                                              02300000
+         COPY   DISASMDA                                                02310000
+*---------------------------------------------------------------------* 02320000
+*                                                                     * 02330000
+*              COMMON DATA MAP                                        * 02340000
+*                                                                     * 02350000
+*---------------------------------------------------------------------* 02360000
+DISASM00 DISASMCM TYPE=DSECT                                    GP99137 02370000
+         END    DISOP370                                                02380000

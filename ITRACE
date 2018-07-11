@@ -1,0 +1,80 @@
+.* ------------------------------------------------------------------*  00010000
+.*                                                                   *  00020000
+.*                        TRACE MACRO                                *  00030000
+.*                                                                   *  00040000
+.*       THE TRACE FUNCTION ALWAYS CAPTURES THE CSECT NAME (TAKEN    *  00050000
+.*       FROM THE MODULE PREFIX DATA) AND A TRACE ID (SPECIFIED ON   *  00060000
+.*       THIS MACRO OR "**NOID**" IF THE ID PARAMETER IS OMITTED.    *  00070000
+.*                                                                   *  00080000
+.*       ONE OR TWO DATA ELEMENTS (8 BYTES EACH) MAY BE CAPTURED AT  *  00090000
+.*       ANY TRACE POINT.  THE DATA TO BE CAPTURED MAY BE SPECIFIED  *  00100000
+.*       IN EITHER OF TWO WAYS: DATA1 OR RDATA1 AND DATA2 OR RDATA2. *  00110000
+.*       DATA1 AND RDATA1 ARE MUTUALLY EXCLUSIVE AS ARE DATA2 AND    *  00120000
+.*       RDATA2.  DATA1 AND DATA2 SPECIFY THE ADDRESS OF DATA TO BE  *  00130000
+.*       CAPTURED, RDATA1 AND RDATA2 SPECIFY A REGISTER WHOSE        *  00140000
+.*       CONTENTS ARE TO BE CAPTURED.                                *  00150000
+.*                                                                   *  00160000
+.*       FOR EXAMPLE:                                                *  00170000
+.*                                                                   *  00180000
+.*                 ITRACE ID=POINTA,DATA1=VALUE1,RDATA2=R4           *  00190000
+.*                                                                   *  00200000
+.*          IN THIS CASE THE TRACE ENTRY WOULD INCLUDE THE CSECT     *  00210000
+.*          NAME, THE ID DATA "POINTA", 8 BYTES OF DATA BEGINNING    *  00220000
+.*          AT VALUE1'S ADDRESS AND THE CONTENTS OF REGISTER 4.      *  00230000
+.*                                                                   *  00240000
+.* ------------------------------------------------------------------*  00250000
+         MACRO                                                          00260000
+&NAME    ITRACE &ID=,&DATA1=,&DATA2=,&RDATA1=,&RDATA2=                  00270000
+         GBLC  &TROPT                                                   00280000
+         LCLC  &N                                                       00290000
+&N       SETC  '&NAME'                                                  00300000
+         AIF   (T'&DATA1 NE 'O' AND T'&RDATA1 NE 'O').ERR0010           00310000
+         AIF   (T'&DATA2 NE 'O' AND T'&RDATA2 NE 'O').ERR0020           00320000
+         AIF   ('&TROPT' EQ 'OFF').MEXIT                                00330000
+         AIF   (T'&DATA1 EQ 'O').DATA020                                00340000
+         AIF   ('&DATA1'(1,1) EQ '(').DATA010                           00350000
+&N       LA    R14,&DATA1         DATA ADDRESS                          00360000
+         MVC   TRDATA1,0(R14)     MOVE DATA                             00370000
+&N       SETC  ''                                                       00380000
+         AGO   .DATA030                                                 00390000
+.DATA010 ANOP                                                           00400000
+&N       MVC   TRDATA1,0&DATA1    MOVE DATA                             00410000
+&N       SETC  ''                                                       00420000
+         AGO   .DATA030                                                 00430000
+.DATA020 ANOP                                                           00440000
+         AIF   (T'&RDATA1 EQ 'O').DATA030                               00450000
+&N       STCM  &RDATA1,15,TRDATA1                                       00460000
+&N       SETC  ''                                                       00470000
+.DATA030 ANOP                                                           00480000
+         AIF   (T'&DATA2 EQ 'O').DATA050                                00490000
+         AIF   ('&DATA2'(1,1) EQ '(').DATA040                           00500000
+&N       LA    R14,&DATA2         DATA ADDRESS                          00510000
+&N       SETC  ''                                                       00520000
+         MVC   TRDATA2,0(R14)     MOVE DATA                             00530000
+         AGO   .DATA060                                                 00540000
+.DATA040 ANOP                                                           00550000
+&N       MVC   TRDATA2,0&DATA2    MOVE DATA                             00560000
+&N       SETC  ''                                                       00570000
+         AGO   .DATA060                                                 00580000
+.DATA050 ANOP                                                           00590000
+         AIF   (T'&RDATA2 EQ 'O').DATA060                               00600000
+&N       STCM  &RDATA2,15,TRDATA2                                       00610000
+&N       SETC  ''                                                       00620000
+.DATA060 ANOP                                                           00630000
+&N       BAL   R14,TRACE000       ENTER TRACE ROUTINE                   00640000
+&N       SETC  ''                                                       00650000
+         AIF      (T'&ID EQ 'O').NOID                                   00660000
+         DC    CL8'&ID'           TRACE ID                              00670000
+         AGO   .ID                                                      00680000
+.NOID    ANOP                                                           00690000
+         DC    CL8'**NOID**'                                            00700000
+.ID      ANOP                                                           00710000
+         MEXIT                                                          00720000
+.ERR0010 ANOP                                                           00730000
+         MNOTE 12,'DATA1 AND RDATA1 ARE MUTUALLY EXCLUSIVE'             00740000
+         MEXIT                                                          00750000
+.ERR0020 ANOP                                                           00760000
+         MNOTE 12,'DATA2 AND RDATA2 ARE MUTUALLY EXCLUSIVE'             00770000
+.MEXIT   ANOP                                                           00780000
+         MEXIT                                                          00790000
+         MEND                                                           00800000

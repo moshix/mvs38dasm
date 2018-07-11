@@ -1,0 +1,15 @@
+//$$DOCLST JOB (Z904,0012),GERHARD,CLASS=E,MSGCLASS=Z,MSGLEVEL=(1,1)    00000100
+//*                                                                     00000200
+//*      SAMPLE JOB TO PRINT THE DOCUMENTATION MEMBER.                  00000300
+//*                                                                     00000400
+//*      CHECK SYSOUT CLASSES AND FORM, AND DATA SET NAME               00000500
+//*      FOR YOUR INSTALLATION.                                         00000600
+//*                                                                     00000700
+//DOCLST EXEC  PGM=IEBGENER                                             00000800
+//*                                                                     00000900
+//SYSIN    DD  DUMMY                                                    00001000
+//SYSPRINT DD  SYSOUT=*                                                 00001100
+//SYSUT2   DD  SYSOUT=M,DCB=(RECFM=FBA,LRECL=80,BLKSIZE=4000)           00001200
+//SYSUT1   DD  DISP=SHR,DSN=SYSC.DISASM.ASM($$DOC),                     00001304
+//             DCB=(RECFM=FBA,LRECL=80)  LIE A LITTLE                   00001400
+//                                                                      00001500

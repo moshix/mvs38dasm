@@ -1,0 +1,73 @@
+//HERC01T  JOB (Z),MOSHIX,CLASS=A,MSGCLASS=A,MSGLEVEL=(1,1)             00000100
+//*                                                                     00000200
+//DISASM EXEC  PGM=DISASM01,REGION=512K,TIME=1                          00000300
+//STEPLIB  DD  DISP=SHR,DSN=SYS1.LINKLIB                                00000400
+//*                                                                     00000500
+//*  ALL SYS--- DD CARDS FOLLOWING ARE FOR INTERNAL ASSEMBLER CALLS     00000600
+//SYSTERM  DD  SYSOUT=*                                                 00000700
+//SYSPRINT DD  DISP=(,PASS),DSN=&&ASPT,UNIT=SYSDA,                      00000800
+//             SPACE=(TRK,(100,100),RLSE),                              00000900
+//             DCB=(RECFM=FBM,LRECL=121,BLKSIZE=1331)                   00001000
+//SYSIN    DD  DISP=(,PASS),DSN=&&ASIN,UNIT=SYSDA,                      00001100
+//             SPACE=(TRK,(15,15),RLSE),                                00001200
+//             DCB=(RECFM=FB,LRECL=80,BLKSIZE=3120)                     00001300
+//SYSLIB   DD  DISP=SHR,DSN=SYS1.MACLIB,DCB=BLKSIZE=32720               00001400
+//         DD  DISP=SHR,DSN=SYS1.AMODGEN                                00001500
+//         DD  DISP=SHR,DSN=SYS1.HASPSRC                                00001600
+//SYSUT1   DD  UNIT=SYSDA,SPACE=(CYL,(1,1))                             00001700
+//SYSUT2   DD  UNIT=SYSDA,SPACE=(CYL,(1,1))                             00001800
+//SYSUT3   DD  UNIT=SYSDA,SPACE=(CYL,(1,1))                             00001900
+//SYSPUNCH DD  DUMMY                                                    00002000
+//SYSUDUMP DD  SYSOUT=*                                                 00002100
+//*  END ASSEMBLER CARDS                                                00002200
+//DISDEBUG DD  SYSOUT=*                                                 00002300
+//DISPRINT DD  SYSOUT=*                                                 00002400
+//DISPUNCH DD  SYSOUT=*                                                 00002500
+//DISMOD   DD  DISP=SHR,DSN=SYS1.LPALIB   ANY LEGAL NUMBER OF           00002600
+//         DD  DISP=SHR,DSN=SYS1.LINKLIB    LIBRARIES MAY BE USED       00002700
+//         DD  DISP=SHR,DSN=SYS1.SVCLIB                                 00002800
+//         DD  DISP=SHR,DSN=SYS1.NUCLEUS                                00002900
+//         DD  DISP=SHR,DSN=SYS2.LINKLIB                                00003000
+//DISIN    DD  *                                                        00003100
+*NAME IEANUC01 IGC018                                                   00003200
+MODULE   IEANUC01                                                       00003300
+CSECT    IGC018                                                         00003400
+PREFIX   LBL                                                            00003500
+BASE     12        0002      090F      0002                             00003600
+BASE     12        0910      0B57      0910                             00003700
+USING    CVT       CVTTCBP   R3        0000      FFFF                   00003800
+DATA     0006      001D                                                 00003900
+*  NOTE THAT THE NEXT 'DATA' IS AN UNTRANSLATED INSTRUCTION             00004000
+DATA     00E6      00E9                                                 00004100
+DATA     0144      0147                                                 00004200
+DATA     01AE      01B1                                                 00004300
+DATA     01D8      01DF                                                 00004400
+DATA     01F4      01FB                                                 00004500
+DATA     0228      022B                                                 00004600
+DATA     02F2      02F5                                                 00004700
+DATA     0304      0307                                                 00004800
+DATA     039C      039F                                                 00004900
+DATA     03E4      03E7                                                 00005000
+DATA     04EA      04ED                                                 00005100
+*  NOTE THAT THE NEXT 'DATA' IS AN UNTRANSLATED INSTRUCTION             00005200
+DATA     0572      0575                                                 00005300
+DATA     05B2      05B5                                                 00005400
+DATA     0610      0613                                                 00005500
+DATA     06A8      06AB                                                 00005600
+DATA     07BE      07C1                                                 00005700
+DATA     07F4      07F7                                                 00005800
+DATA     08C8      08CB                                                 00005900
+DATA     0942      09F7                                                 00006000
+DATA     0B58      0FFF                                                 00006100
+LABEL    STARTER   0000      I                                          00006200
+LABEL    AROUND    001E      I                                          00006300
+LABEL    MODNAME   0B58      D                                          00006400
+PRINT    DIR RLD ASM TRACE XRF  CRUD                                    00006500
+ASM START                                                               00006600
+ PRINT ON,GEN,DATA                                                      00006700
+         CVT DSECT=YES,LIST=YES                                         00006800
+         END   ,                                                        00006900
+ASM END                                                                 00007000
+*ABEND                                                                  00007100
+//*                                                                     00007200
+//                                                                      00007300

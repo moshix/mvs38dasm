@@ -1,0 +1,663 @@
+*---------------------------------------------------------------------* 00010000
+*                                                                     * 00020000
+*          COMMON AREA MAPPING MACRO                                  * 00030000
+*                                                                     * 00040000
+*     This macro will generate either the 'common' module CSECT or    * 00050000
+*     a DSECT to map the 'common' module.  'Common' is used for       * 00060000
+*     constants and work areas that are required by several modules   * 00070000
+*     allowing some elimination of duplicated data and to allow       * 00080000
+*     inter-module communication.                                     * 00090000
+*                                                                     * 00100000
+*     The trace table code is also incorporated into the 'DISASM00'.  * 00110000
+*                                                                     * 00120000
+*---------------------------------------------------------------------* 00130000
+         MACRO                                                          00140000
+&NAME    DISASMCM &TYPE=                                                00150000
+         GBLA  &TRNBRG,&MAXL,&MINL                                      00160000
+         GBLC  &TROPTG,&DAPRT,&COMPRT,&ASMNAME                          00170000
+         AIF   (T'&NAME EQ 'O').NONAME                                  00180000
+         AIF   ('&TYPE' EQ 'CSECT').CSECT                               00190000
+         AIF   ('&TYPE' EQ 'DSECT').DSECT                               00200000
+         MNOTE 12,'INVALID TYPE'                                        00210000
+         MEXIT                                                          00220000
+.CSECT   ANOP                                                           00230000
+&NAME    CSECT                                                          00240000
+         AGO   .NODSECT                                                 00250000
+.DSECT   ANOP                                                           00260000
+         AIF   ('&COMPRT' EQ 'ON').PRT010                               00270000
+         PRINT OFF                                                      00280000
+.PRT010  ANOP                                                           00290000
+&NAME    DSECT                                                          00300000
+.NODSECT ANOP                                                           00310000
+*---------------------------------------------------------------------* 00320000
+*                                                                     * 00330000
+*          Double word for CVB/CVD                                    * 00340000
+*                                                                     * 00350000
+*---------------------------------------------------------------------* 00360000
+COMMDWRD DC    D'0'                                                     00370000
+*---------------------------------------------------------------------* 00380000
+*                                                                     * 00390000
+*          ADDRESS CONSTANTS                                          * 00400000
+*                                                                     * 00410000
+*---------------------------------------------------------------------* 00420000
+         DC    CL8'DISASM00'                                            00430000
+ACOMM    DC    A(DISASM00)         COMMON MODULE                        00440000
+         DC    CL8'DISASM01'                                            00450000
+A01      DC    V(DISASM01)         MAINLINE MODULE                      00460000
+         DC    CL8'DISASM02'                                            00470000
+A02      DC    V(DISASM02)         PARAMETER READER                     00480000
+         DC    CL8'DISASM03'                                            00490000
+A03      DC    V(DISASM03)         MODULE READER                        00500000
+         DC    CL8'DISASM04'                                            00510000
+A04      DC    V(DISASM04)         CESD record processor                00520000
+         DC    CL8'DISASM05'                                            00530000
+A05      DC    V(DISASM05)         RLD record processor                 00540000
+         DC    CL8'DISASM55'                                    GP99148 00550000
+A55      DC    V(DISASM55)         SYM RECORD PROCESSOR         GP99148 00560000
+         DC    CL8'DISASM06'                                            00570000
+A06      DC    V(DISASM06)         MODULE TEXT PRINTER; VER/REP GP10082 00580000
+         DC    CL8'DISASM07'                                            00590000
+A07      DC    V(DISASM07)         DSECT INTERPRETER                    00600000
+         DC    CL8'DISASM08'                                            00610000
+A08      DC    V(DISASM08)         ASSIGN LABELS                        00620000
+         DC    CL8'DISASM09'                                            00630000
+A09      DC    V(DISASM09)         SOURCE GENERATOR                     00640000
+         DC    CL8'DISASM19'                                    GP99148 00650000
+A19      DC    V(DISASM19)         X-REF GENERATOR              GP99148 00660000
+         DC    CL8'DISASMDB'                                            00670000
+ADB      DC    V(DISASMDB)         DEBUG                                00680000
+         DC    CL8'DISASMOP'                                            00690000
+AOP      DC    V(DISASMOP)         OPCODE TABLE                         00700000
+         DC    CL8'DISASMPR'                                            00710000
+APR      DC    V(DISASMPR)         PRINT MODULE ADDRESS                 00720000
+APU      DC    V(DISASMPU)         PUNCH MODULE ADDRESS         GP10047 00730000
+*---------------------------------------------------------------------* 00740000
+*                                                                     * 00750000
+*          TRACE CONTROL                                              * 00760000
+*                                                                     * 00770000
+*---------------------------------------------------------------------* 00780000
+         DS    0A                                                       00790000
+         DC    CL4'1ST'            FIRST TRACE ENTRY                    00800000
+TR1ST    DC    A(0)                                                     00810000
+         DC    CL4'LAST'           LAST TRACE ENTRY                     00820000
+TRLAST   DC    A(0)                                                     00830000
+         DC    CL4'CURR'           CURRENT TRACE ENTRY                  00840000
+TRCURR   DC    A(0)                                                     00850000
+TRADDR   DC    A(0)                TRACE TABLE STORAGE ADDRESS          00860000
+TRR14    DC    A(0)                REGISTER 14 SAVE AREA                00870000
+TRDATA1  DC    CL8' '              TRACE DATA ITEM 1                    00880000
+TRDATA2  DC    CL8' '              TRACE DATA ITEM 2                    00890000
+TRSIZE   DC    A(&TRNBRG*32)       TRACE TABLE SIZE                     00900000
+*---------------------------------------------------------------------* 00910000
+*   GLOBAL DATA - LIFE OF PROGRAM - OBTAINED IN SUBPOOL 88            * 00920000
+*---------------------------------------------------------------------* 00930000
+COMMIO   DC    A(0)                I/O BUFFER ADDRESS                   00940000
+$IOSIZE  EQU   32760               I/O BUFFER SIZE                      00950000
+*---------------------------------------------------------------------* 00960000
+*   GLOBAL DATA - FOR CSECT DURATION ONLY - FROM SUBPOOL 69           * 00970000
+*---------------------------------------------------------------------* 00980000
+COMMCLR  DS    0A                      START OF AREA TO CLEAR   GP10085 00990000
+COMMESD  DC    A(0)                EXTERNAL SYMBOL TABLE ANCHOR         01000000
+COMMRLD  DC    A(0)                RLD TABLE ANCHOR                     01010000
+COMMUSNG DC    A(0)                USING TABLE ANCHOR                   01020000
+COMMDSCT DC    A(0)                DSECT TABLE ANCHOR                   01030000
+COMMBASE DC    A(0)                BASE TABLE ANCHOR                    01040000
+COMMDATA DC    A(0)                DATA TABLE ANCHOR                    01050000
+COMMDISP DC    A(0)                INSTRUCTION DISPLACEMENT TABLE       01060000
+COMMREF  DC    A(0)                REFERENCE TABLE ANCHOR               01070000
+COMMLABL DC    A(0)                LABEL TABLE ANCHOR                   01080000
+COMMCSAD DC    A(0)                CSECT ADDRESS                        01090000
+COMMCSEP DC    A(0)                LINK EDIT ASSIGNED ENTRY POINT       01100000
+COMMCSEA DC    A(0)                CSECT ENDING ADDRESS                 01110000
+COMMCSEO DC    A(0)                CSECT ORIGINAL END PRE-ROUND GP10071 01120000
+COMMCSLN DC    A(0)                CSECT LENGTH                         01130000
+COMMTXT  DC    A(0)                TEXT'S STORAGE ADDRESS               01140000
+COMMSYMP DC    A(0)                SYMBOL TABLE CHAIN           GP99148 01150000
+COMMVERS DC    A(0)                CHAIN OF VERIFY REQUESTS     GP10082 01160000
+COMMREPS DC    A(0)                CHAIN OF REPLACE REQUESTS    GP10082 01170000
+COMMESID DS    XL2                 CSECT's ESDID                        01180000
+COMMCLRL EQU   *-COMMCLR               SIZE TO CLEAR            GP10085 01190000
+COMMBLK  DS    0A                      START OF AREA TO BLANK   GP10085 01200000
+COMMMOD  DC    CL8' '              MODULE NAME                          01210000
+COMMCSNM DC    CL8' '              CSECT NAME                           01220000
+COMMBLKL EQU   *-COMMCLR               SIZE TO CLEAR            GP10085 01230000
+*---------------------------------------------------------------------* 01240000
+*                                                                     * 01250000
+*      Sub-heading length is actually a flag byte and a length byte   * 01260000
+*                                                                     * 01270000
+*        If first byte is X'00', heading is to be centered            * 01280000
+*        If first byte is X'FF', heading is not to be centered        * 01290000
+*                                                                     * 01300000
+*      Second byte is the length for centered and non-centered        * 01310000
+*                                                                     * 01320000
+*---------------------------------------------------------------------* 01330000
+COMMSUBL DC    H'0'                SUB HEADING LENGTH                   01340000
+COMMPFXL DC    H'0'                LABEL PREFIX LENGTH                  01350000
+COMMH4   DC    H'4'                CONSTANT                             01360000
+COMMH8   DC    H'8'                CONSTANT                             01370000
+COMMH32  DC    H'32'               CONSTANT                             01380000
+COMMMAXL DC    PL3'&MAXL'          MAXIMUM LINES PER PAGE               01390000
+COMMFILL DC    X'00'         GETMAIN: STORAGE FILL BYTE         GP99161 01400000
+COMMPOOL DC    AL1(69)       GETMAIN: SUBPOOL                   GP10085 01410000
+COMMFLAG DC    X'00'               GLOBAL CONTROL FLAGS                 01420000
+$ABORT   EQU   X'80'               .. SERIOUS ERROR, ABORT              01430000
+$ERROR   EQU   X'40'               .. ERROR HAS OCCURRED                01440000
+$CSECT   EQU   X'20'               .. CSECT LOCATED                     01450000
+$ABEND   EQU   X'10'               .. ABEND AT EXIT                     01460000
+$ASMIN   EQU   X'08'               .. ASSEMBLER INPUT PRESENT           01470000
+$SEQLABL EQU   X'04'               .. SEQUENTIALLY NUMBERED LABELS      01480000
+COMMDD   DC    X'00'               DD STATEMENT FLAGS                   01490000
+$PRTDD   EQU   X'80'               .. DISPRINT DD PRESENT               01500000
+$INDD    EQU   X'40'               .. DISIN DD PRESENT                  01510000
+$MODDD   EQU   X'20'               .. DISMOD DD PRESENT                 01520000
+$PUNCHDD EQU   X'10'               .. DISPUNCH DD PRESENT               01530000
+$DEBUGDD EQU   X'08'               .. DISDEBUG DD PRESENT               01540000
+$ADADD   EQU   X'04'               .. DISADATA DD PRESENT       GP99166 01550000
+$LISTDD  EQU   X'02'               .. DISLIST DD PRESENT        GP99166 01560000
+PRINTFG1 DC    AL1(0)        PRINT OPTIONS                      GP99132 01570000
+$PFDIR   EQU   X'80'           PRINT DIRECTORY ENTRY DATA       GP99132 01580000
+$PFESD   EQU   X'40'           PRINT CESD LISTING               GP99132 01590000
+$PFRLD   EQU   X'20'           PRINT RLD LISTING                GP99132 01600000
+$PFSYM   EQU   X'10'           PRINT SYM LISTING                GP99132 01610000
+$PFDAT   EQU   X'08'           PRINT SYSADATA INFO (LATER)      GP99132 01620000
+$PFLBL   EQU   X'02'           PRINT LABELS                     GP99132 01630000
+$PFTRC   EQU   X'01'           PRINT THE TRACE TABLE ON ABNORMAL END    01640000
+PRINTFG2 DC    AL1(0)        PRINT OPTIONS                      GP99132 01650000
+$PFHEX   EQU   X'80'           PRINT THE CSECT HEX DUMP         GP99132 01660000
+$PFASM   EQU   X'40'           PRINT THE ASSEMBLY LISTING       GP99132 01670000
+$PFXRF   EQU   X'20'           PRINT A LABEL CROSS-REFERENCE    GP99132 01680000
+$PFPUN   EQU   X'10'           PUNCH OUTPUT (?)                 GP99132 01690000
+$PFBUG   EQU   X'01'           PRINT ADDITIONAL DEBUG INFO      GP99149 01700000
+PRINTFG3 DC    X'00'         PROCESSING FLAG                    GP99166 01710000
+$PFMAC   EQU   X'80'           INCLUDE MACRO EXPANDED CODE (SYSADATA)   01720000
+$PFCOPY  EQU   X'40'           INCLUDE COPY CODE           (SYSADATA)   01730000
+$MG0504  EQU   X'01'           MSG ISSUED - SKIP DUPLICATES     GP04234 01740000
+COMMOPFG DC    X'00'         PROCESSING OPTIONS                 GP08063 01750000
+$OFIXSWP EQU   X'80'           TREAT DDD(X,0) AS DDD(0,X)       GP08063 01760000
+$OFNOBLK EQU   X'40'           NAME BLANK CSECTS                GP10074 01770000
+$OFROUND EQU   X'10'           ROUND CSECT TO DOUBLE-WORD       GP10066 01780000
+$OFZERO  EQU   X'08'           USE 0 FOR DS/ORG FILLERS         GP10066 01790000
+$OFABSR  EQU   X'04'           GENERATE ABSOLUTE REGISTERS      GP10029 01800000
+$OFPLSR  EQU   X'02'           GENERATE PL/S STYLE @nn REGS     GP10055 01810000
+$OFBCOP  EQU   X'01'           DO NOT GEN MNEMONIC BRANCH OPS   GP10029 01820000
+COMMPFX  DC    CL4' '              LABEL PREFIX                         01830000
+COMMSUBH DC    CL133' '            SUB-HEADING                          01840000
+COMMDBSH DC    CL35' '             DEBUG SUB-HEADING                    01850000
+COMM0F0F DC    8X'0F'                                                   01860000
+COMM1F1F DC    8X'1F'                                                   01870000
+COMMBLKS DC    80C' '                                                   01880000
+COMMHXCH DC    C'0123456789ABCDEF'                                      01890000
+COMMHXTR EQU   COMMHXCH-C'0'   SIMPLE HEX TO EBCDIC TRANSLATE   GP99132 01900000
+COMMCHHX DC    X'000A0B0C0D0E0F000000000000000000'                      01910000
+         DC    X'00010203040506070809000000000000'                      01920000
+COMMNBR  DS    0CL2                                                     01930000
+         DC    C'0 '                                                    01940000
+         DC    C'1 '                                                    01950000
+         DC    C'2 '                                                    01960000
+         DC    C'3 '                                                    01970000
+         DC    C'4 '                                                    01980000
+         DC    C'5 '                                                    01990000
+         DC    C'6 '                                                    02000000
+         DC    C'7 '                                                    02010000
+         DC    C'8 '                                                    02020000
+         DC    C'9 '                                                    02030000
+         DC    C'10'                                                    02040000
+         DC    C'11'                                                    02050000
+         DC    C'12'                                                    02060000
+         DC    C'13'                                                    02070000
+         DC    C'14'                                                    02080000
+         DC    C'15'                                                    02090000
+         DC    C'16'                                                    02100000
+*---------------------------------------------------------------------* 02110000
+*                                                                     * 02120000
+*          Printable characters                                       * 02130000
+*                                                                     * 02140000
+*---------------------------------------------------------------------* 02150000
+COMMPRT  DC    256X'FF'                                                 02160000
+         ORG   COMMPRT+X'40'                                            02170000
+         DC    X'00'                                                    02180000
+         ORG   COMMPRT+X'4A'                                            02190000
+         DC    6X'00'                                                   02200000
+         ORG   COMMPRT+X'5A'                                            02210000
+         DC    6X'00'                                                   02220000
+         ORG   COMMPRT+X'60'                                            02230000
+         DC    2X'00'                                                   02240000
+         ORG   COMMPRT+X'6A'                                            02250000
+         DC    6X'00'                                                   02260000
+         ORG   COMMPRT+X'79'                                            02270000
+         DC    4X'00'                                                   02280000
+         ORG   COMMPRT+X'7E'                                            02290000
+         DC    2X'00'                                                   02300000
+         ORG   COMMPRT+X'C0'                                            02310000
+         DC    10X'00'                                                  02320000
+         ORG   COMMPRT+X'D0'                                            02330000
+         DC    10X'00'                                                  02340000
+         ORG   COMMPRT+X'E2'                                            02350000
+         DC    8X'00'                                                   02360000
+         ORG   COMMPRT+X'F0'                                            02370000
+         DC    10X'00'                                                  02380000
+         ORG   COMMPRT+256                                              02390000
+*---------------------------------------------------------------------* 02400000
+*                                                                     * 02410000
+*          Non-printable characters                                   * 02420000
+*                                                                     * 02430000
+*---------------------------------------------------------------------* 02440000
+COMMNPRT DC    256X'00'                                                 02450000
+         ORG   COMMNPRT+X'4A'                                           02460000
+         DC    X'FF'                                                    02470000
+         ORG   COMMNPRT+X'4C'                                           02480000
+         DC    4X'FF'                                                   02490000
+         ORG   COMMNPRT+X'5A'                                           02500000
+         DC    6X'FF'                                                   02510000
+         ORG   COMMNPRT+X'60'                                           02520000
+         DC    2X'FF'                                                   02530000
+         ORG   COMMNPRT+X'6A'                                           02540000
+         DC    X'FF'                                                    02550000
+         ORG   COMMNPRT+X'6C'                                           02560000
+         DC    4X'FF'                                                   02570000
+         ORG   COMMNPRT+X'79'                                           02580000
+         DC    4X'FF'                                                   02590000
+         ORG   COMMNPRT+X'7E'                                           02600000
+         DC    2X'FF'                                                   02610000
+         ORG   COMMNPRT+X'C0'                                           02620000
+         DC    10X'FF'                                                  02630000
+         ORG   COMMNPRT+X'D0'                                           02640000
+         DC    10X'FF'                                                  02650000
+         ORG   COMMNPRT+X'E2'                                           02660000
+         DC    8X'FF'                                                   02670000
+         ORG   COMMNPRT+X'F0'                                           02680000
+         DC    10X'FF'                                                  02690000
+         ORG   COMMNPRT+256                                             02700000
+         EJECT ,                                                GP99137 02710000
+*********************************************************************** 02720000
+*                                                                     * 02730000
+*  GETOPENT   PERFORM INSTRUCTION TABLE LOOK-UP FOR OP-CODE IN R1     * 02740000
+*             IF MASK PRESENT, VERIFY MASK BITS ARE ZERO              * 02750000
+*  RETURNS:R14+0   NO MATCH                                           * 02760000
+*             +4   R15 -> OP-CODE TABLE ENTRY                         * 02770000
+*                  R0  =  INSTRUCTION LENGTH                          * 02780000
+*                                                                     * 02790000
+*********************************************************************** 02800000
+         PUSH  USING                                            GP99137 02810000
+         DROP  ,                                                GP99137 02820000
+         USING &NAME,R11           DEFINE BASE                  GP99137 02830000
+GETOPENT STM   R0,R15,TRCESAVE     SAVE ALL REGISTERS           GP99137 02840000
+         SR    R15,R15                                          GP99137 02850000
+         IC    R15,0(,R1)    GET MAJOR OP-CODE                  GP99137 02860000
+         LA    R14,X'C0'     LENGTH DETERMINATION BITS          GP99137 02870000
+         NR    R14,R15       MASK OP-CODE                       GP99137 02880000
+         SRL   R14,6         RETAIN TOP TWO BITS ONLY           GP99137 02890000
+         SR    R0,R0                                            GP99137 02900000
+         IC    R0,GETOPLEN(R14)  EQUIVALENT LENGTH              GP05204 02910000
+         SLL   R15,2         TIMES ADDRESS ENTRY LENGTH         GP99137 02920000
+         AL    R15,AOP       POINT TO INSTRUCTION               GP99137 02930000
+         USING OPDSECT,R15                                      GP99137 02940000
+         ICM   R15,15,0(R15) IS IT: 0 ILLEGAL; - TABLE; + VALID GP99137 02950000
+         BZ    GETOPNOT      ILLEGAL                            GP99137 02960000
+         BP    GETOPTMK      GOOD - NOW CHECK MASK BITS         GP10018 02970000
+         SR    R14,R14       CLEAR FOR IC                       GP99137 02980000
+         SR    R2,R2         CLEAR FOR IC                       GP99137 02990000
+         IC    R14,1(,R1)    GET SUBCODE                        GP99137 03000000
+         IC    R2,OPFLAG1    GET MASK                           GP99137 03010000
+         NR    R14,R2        MASK UNNECESSARY BITS              GP99137 03020000
+         IC    R2,OPFLAG2    GET RIGHT SHIFT VALUE              GP99137 03030000
+         SRL   R14,0(R2)     SHIFT UNWANTED BITS                GP99137 03040000
+         CLM   R14,1,OPFLAG3 IS IT IN LEGAL RANGE?              GP99137 03050000
+         BH    GETOPNOT      NO; RETURN ILLEGAL                 GP99137 03060000
+         LA    R14,1(,R14)   ALLOW FOR TABLE DATA               GP99137 03070000
+         SLL   R14,2         OFFSET TO INSTRUCTION ADDRESS      GP99137 03080000
+         ALR   R15,R14       GET ENTRY ADDRESS POINTER          GP99137 03090000
+         ICM   R15,15,0(R15) IS IT LEGAL?                       GP99137 03100000
+         BNH   GETOPNOT      NO; FAIL IT                        GP99137 03110000
+GETOPTMK TM    OPFLAGS,$OPMASK  MASK PRESENT?                   GP10018 03120000
+         BZ    GETOPEXT      NO; EXIT WITH VALID INSTRUCTION    GP10018 03130000
+         LR    R4,R0         SAVE LENGTH                        GP10018 03140000
+         BCTR  R4,0          EXECUTE LENGTH                     GP10018 03150000
+         XC    GETOPWRK,GETOPWRK    CLEAR WORK AREA             GP10018 03160000
+         EX    R4,EXGETOPC   MOVE COMPLETE INSTRUCTION          GP10018 03170000
+         NC    GETOPWRK,OPMASK    MASK                          GP10018 03180000
+         BNZ   GETOPNOT      INVALID INSTRUCTION                GP10018 03190000
+GETOPEXT LM    R1,R14,TRCESAVE+4  RESTORE REGS EXC. R15, R0     GP99137 03200000
+         B     4(,R14)       RETURN                             GP99137 03210000
+GETOPNOT LM    R1,R15,TRCESAVE+4  RESTORE ALL BUT R0            GP99137 03220000
+         BR    R14                                              GP99137 03230000
+EXGETOPC MVC   GETOPWRK(0),0(R1)  MOVE COMPLETE INSTRUCTION     GP10018 03240000
+GETOPLEN DC    AL1(2,4,4,6) INSTRUCTION LENGTH BY TOP BITS      GP05204 03250000
+GETOPWRK DC    XL6'0'        WORK AREA FOR MASKING              GP10018 03260000
+         POP   USING                                            GP99137 03270000
+         EJECT                                                          03280000
+*---------------------------------------------------------------------* 03290000
+*                                                                     * 03300000
+*          ADD TRACE ENTRY                                            * 03310000
+*                                                                     * 03320000
+*  During program initialization, DISASM01 acquires storage for the   * 03330000
+*  trace table and sets COMM1ST, COMMLAST, and COMMCURR.  DISASM01    * 03340000
+*  also sets R11 to the address of DISASM00 and all other modules     * 03350000
+*  depend on this remaining unchanged.  Any module except this        * 03360000
+*  module may call the trace routine.  Macro ITRACE generates the     * 03370000
+*  calling sequence.  R14 is the only register altered by the trace   * 03380000
+*  macro.                                                             * 03390000
+*                                                                     * 03400000
+*  The trace table is a "wrap-around" table.  COMM1ST is the first    * 03410000
+*  entry's address, COMMLAST is the last entry's address, and         * 03420000
+*  COMMCURR is the address of the last entry added to the table.      * 03430000
+*  When a trace entry is added to the table, the calling module's     * 03440000
+*  name, an 8-byte ID, and up to 2 8-byte fields are captured.        * 03450000
+*                                                                     * 03460000
+*                                                                     * 03470000
+*                                                                     * 03480000
+*      This code depends on:                                          * 03490000
+*           R11  'DISASM00' address                                   * 03500000
+*           R12  current module's base address                        * 03510000
+*                and the module's name must be at 10 bytes (0A hex)   * 03520000
+*                into the module                                      * 03530000
+*           R14  trace id's address and R14 + 8 will be the return    * 03540000
+*                address                                              * 03550000
+*                                                                     * 03560000
+*---------------------------------------------------------------------* 03570000
+         PUSH  USING                                            GP99137 03580000
+TRACE000 DS    0H                                                       03590000
+         USING &NAME,R11           DEFINE BASE                          03600000
+         USING TRENTRY,R1          DEFINE BASE                          03610000
+         STM   R0,R15,TRCESAVE     SAVE ALL REGISTERS                   03620000
+         ICM   R1,15,TRCURR        CURRENT TRACE ENTRY                  03630000
+         BZ    TRACE020            NO TRACE TABLE                       03640000
+*NUTS*   OC    0(TRENTRYL,R1),0(R1)    EMPTY ENTRY?             GP99136 03650000
+*NUTS*   BZ    TRACE010            YES.. USE THIS ENTRY         GP99136 03660000
+         LA    R1,TRENTRYL(,R1)    NEXT TRACE ENTRY                     03670000
+         C     R1,TRLAST           BEYOND END OF TABLE?                 03680000
+         BNH   TRACE010            NO                                   03690000
+         L     R1,TR1ST            'WRAP' TRACE TABLE                   03700000
+TRACE010 DS    0H                                                       03710000
+         ST    R1,TRCURR           SAVE CURRENT TRACE ENTRY ADDRESS     03720000
+*OLD*    MVC   TREMOD,10(R12)      COPY MODULE NAME             GP99140 03730000
+         MVC   TREMOD,5(R12)       COPY MODULE NAME FROM MODHEAD EXP.   03740000
+         MVC   TREID,0(R14)        COPY TRACE ID                        03750000
+         MVC   TREDATA1,TRDATA1    COPY TRACE DATA 1                    03760000
+         MVC   TREDATA2,TRDATA2    COPY TRACE DATA 2                    03770000
+         XC    TRDATA1,TRDATA1     CLEAR TRACE DATA                     03780000
+         XC    TRDATA2,TRDATA2     CLEAR TRACE DATA                     03790000
+TRACE020 DS    0H                                                       03800000
+         LM    R0,R15,TRCESAVE     RESTORE ALL REGISTERS                03810000
+         B     8(,R14)             RETURN                               03820000
+         POP   USING                                            GP99137 03830000
+         EJECT                                                  GP99138 03840000
+*---------------------------------------------------------------------* 03850000
+*                                                                     * 03860000
+*       PRINT TRACE TABLE                                             * 03870000
+*                                                                     * 03880000
+*  THIS ROUTINE PRINTS THE TRACE TABLE WHEN CALLED, AND WHEN $PFTRC   * 03890000
+*  IS ON IN FLAG BYTE PRINTFG1.                                       * 03900000
+*                                                                     * 03910000
+*      This code depends on:                                          * 03920000
+*           R11  'DISASM00' address                                   * 03930000
+*                                                                     * 03940000
+*---------------------------------------------------------------------* 03950000
+         PUSH  USING                                            GP99137 03960000
+         USING &NAME,R11     DEFINE BASE                        GP99138 03970000
+TRACEPRT STM   R0,R15,TRCESAVE     SAVE ALL REGISTERS           GP99138 03980000
+         TM    PRINTFG1,$PFTRC  TRACE TABLE REQUESTED?          GP99138 03990000
+         BZ    TRACEPEN      NO; GET OUT                        GP99138 04000000
+         NI    PRINTFG1,255-$PFTRC  SET IT DONE                 GP99138 04010000
+         MVC   COMMSUBH(L'TRACESHD),TRACESHD                    GP99138 04020000
+         MVI   COMMSUBL+L'COMMSUBL-1,L'TRACESHD                 GP99138 04030000
+         MVI   COMMSUBL,X'FF'   SET LEFT-ADJUST REQUEST         GP99138 04040000
+         MVI   PRTCMD,$PRTSUBH  REQUEST SUB-HEADER              GP99138 04050000
+         BAL   R14,PRINTDAT  PRINT IT                           GP99138 04060000
+         ICM   R5,15,TRCURR  LOAD CURRENT ENTRY                 GP99138 04070000
+         BNZ   TRACEPIN      AND INCREMENT                      GP99138 04080000
+         B     TRACEPEN      ELSE GET OUT                       GP99138 04090000
+         USING TRENTRY,R5    DECLARE MAPPING                    GP99138 04100000
+TRACEPPR CLI   TREMOD,0      ENTRY USED ?                       GP99138 04110000
+         BE    TRACEPIN      NO; SKIP EMPTY                     GP99138 04120000
+         MVC   PRTDATA+TPOMOD(L'TPOMOD),TREMOD  SHOW MODULE NM  GP99138 04130000
+         MVC   PRTDATA+TPOTID(L'TPOTID),TREID   SHOW TRACE ID   GP99138 04140000
+         UNPK  PRTDATA+TPODA1A(L'TPODA1A+1),TREDATA1(5)         GP99138 04150000
+         TR    PRTDATA+TPODA1A(L'TPODA1A+1),COMMHXTR            GP99138 04160000
+         MVI   PRTDATA+TPODA1A+L'TPODA1A,C' '                   GP99138 04170000
+         UNPK  PRTDATA+TPODA1B(L'TPODA1B+1),TREDATA1+4(5)       GP99138 04180000
+         TR    PRTDATA+TPODA1B(L'TPODA1B+1),COMMHXTR            GP99138 04190000
+         MVI   PRTDATA+TPODA1B+L'TPODA1B,C' '                   GP99138 04200000
+         UNPK  PRTDATA+TPODA2A(L'TPODA2A+1),TREDATA2(5)         GP99138 04210000
+         TR    PRTDATA+TPODA2A(L'TPODA2A+1),COMMHXTR            GP99138 04220000
+         MVI   PRTDATA+TPODA2A+L'TPODA2A,C' '                   GP99138 04230000
+         MVC   COMMDWRD(4),TREDATA2+4                           GP99138 04240000
+         UNPK  PRTDATA+TPODA2B(L'TPODA2B+1),COMMDWRD(5)         GP99138 04250000
+         TR    PRTDATA+TPODA2B(L'TPODA2B+1),COMMHXTR            GP99138 04260000
+         MVI   PRTDATA+TPODA2B+L'TPODA2B,C' '                   GP99138 04270000
+         BAL   R14,PRINTREC  PRINT CURRENT RECORD               GP99138 04280000
+         XC    TRENTRY(TRENTRYL),TRENTRY  DON'T PRINT AGAIN     GP99138 04290000
+TRACEPIN LA    R5,TRENTRYL(,R5)    NEXT TRACE ENTRY             GP99138 04300000
+         CL    R5,TRCURR     DONE?                              GP99138 04310000
+         BE    TRACEPEN      YES; RETUNR                        GP99138 04320000
+         C     R5,TRLAST     BEYOND END OF TABLE?               GP99138 04330000
+         BNH   TRACEPPR        NO                               GP99138 04340000
+         L     R5,TR1ST      'WRAP' TRACE TABLE                 GP99138 04350000
+         B     TRACEPPR      AND FORMAT THIS ONE                GP99138 04360000
+TRACEPEN LM    R0,R15,TRCESAVE     RESTORE ALL REGISTERS        GP99138 04370000
+         BR    R14           RETURN                             GP99138 04380000
+         SPACE 1                                                GP99138 04390000
+TPOMOD   EQU   003,8,C'C'    MODULE NAME                        GP99138 04400000
+TPOTID   EQU   013,8,C'C'    TRACE IDENTIFIER                   GP99138 04410000
+TPODA1A  EQU   023,8,C'C'    DATA FIELD 1                       GP99138 04420000
+TPODA1B  EQU   032,8,C'C'    DATA FIELD 1 PART 2                GP99138 04430000
+TPODA2A  EQU   042,8,C'C'    DATA FIELD 2                       GP99138 04440000
+TPODA2B  EQU   051,8,C'C'    DATA FIELD 2 PART 2                GP99138 04450000
+TRACESHD DC    C'   MODULE    FUNCTION  DATA'                   GP99138 04460000
+         POP   USING                                            GP99137 04470000
+         SPACE 2                                                GP99148 04480000
+*---------------------------------------------------------------------* 04490000
+*                                                                     * 04500000
+*       COMMON STORAGE FUNCTIONS                                      * 04510000
+*                                                                     * 04520000
+*   GETMAIN:   GET STORAGE; AMOUNT IN R0                              * 04530000
+*   FREEMAIN:  FREE STORAGE; AMOUNT IN R0, ADDRESS IN R1              * 04540000
+*                                                                     * 04550000
+*---------------------------------------------------------------------* 04560000
+         PUSH  USING                                            GP99148 04570000
+         USING &NAME,R11     DEFINE BASE                        GP99148 04580000
+GETMAIN  STM   R14,R1,MAINRSV SAVE CRITICAL REGISTERS           GP99154 04590000
+*XA*     STORAGE OBTAIN,LENGTH=(0),LOC=ANY,SP=COMMPOOL          GP99148 04600000
+         ICM   R0,8,COMMPOOL      SET SUBPOOL                   GP10085 04610000
+         GETMAIN R,LV=(0)                                       GP04234 04620000
+         ST    R1,MAINRSV+12  RETURN R1 TO USER                 GP99154 04630000
+         LR    R0,R1         COPY ADDRESS                       GP99154 04640000
+         L     R1,MAINRSV+8  GET LENGTH AGAIN                   GP99154 04650000
+         SR    R15,R15       CLEAR SOURCE LENGTH AND FILL       GP99154 04660000
+         ICM   R15,8,COMMFILL  USE USER'S FILL BYTE             GP99161 04670000
+         MVCL  R0,R14        CLEAR THE STORAGE                  GP99154 04680000
+         LM    R14,R1,MAINRSV  RESTORE USER'S REGISTERS                 04690000
+         BR    R14                   RETURN                     GP99148 04700000
+         SPACE 1                                                GP99148 04710000
+FREEMAIN STM   R14,R15,MAINRSV SAVE CRITICAL REGISTERS          GP99148 04720000
+*XA*     STORAGE RELEASE,LENGTH=(0),ADDR=(1),SP=COMMPOOL        GP99148 04730000
+         ICM   R0,8,COMMPOOL      SET SUBPOOL                   GP10085 04740000
+         FREEMAIN R,LV=(0),A=(1)                                GP04234 04750000
+         LM    R14,R15,MAINRSV RESTORE USER'S REGISTERS         GP99148 04760000
+         BR    R14                   RETURN                     GP99148 04770000
+         SPACE 2                                                GP99138 04780000
+*---------------------------------------------------------------------* 04790000
+*                                                                     * 04800000
+*       COMMON PRINT FUNCTIONS                                        * 04810000
+*                                                                     * 04820000
+*   PRINTMSG:  MOVE MESSAGE TO PRTDATA AND PRINT                      * 04830000
+*   PRINTREC:  DATA IN PRTDATA, SET PRINT FLAG                        * 04840000
+*   PRINTDAT:  DATA IN PRTDATA, FLAGS SET BY CALLER                   * 04850000
+*   PRINTCLR:  CLEAR PRINT LINE                                       * 04860000
+*                                                                     * 04870000
+*---------------------------------------------------------------------* 04880000
+         PUSH  USING                                            GP99137 04890000
+         USING &NAME,R11     DEFINE BASE                        GP99138 04900000
+PRINTMSG STM   R14,R1,PRINTRSV  SAVE IN TRACE AREA              GP99138 04910000
+         SR    R15,R15       CLEAR LENGTH FIELD                 GP99138 04920000
+         ICM   R15,1,0(R1)   LOAD MESSAGE LENGTH                GP99138 04930000
+         BNP   PRINTREX      BAD - JUST RETURN                  GP99138 04940000
+         LA    R0,L'PRTDATA                                     GP99138 04950000
+         CR    R15,R0        WILL THE DATA FIT?                 GP99138 04960000
+         BNH   *+6                                              GP99138 04970000
+         LR    R15,R0        TRUNCATE IF TOO LONG               GP99138 04980000
+         BCTR  R15,0         DECREMENT                          GP99138 04990000
+         EX    R15,PRINTMVR  MOVE TO PRINT LINE                 GP99138 05000000
+         LM    R14,R0,PRINTRSV  RESTORE REGISTERS               GP99138 05010000
+         B     PRINTREC      AND PRINT IT                       GP99138 05020000
+PRINTMVR MVC   PRTDATA(0),1(R1)  MOVE MESSAGE TEXT              GP99138 05030000
+         SPACE 1                                                GP99138 05040000
+PRINTREC MVI   PRTCMD,$PRTPRT        SET COMMAND                GP99138 05050000
+PRINTDAT STM   R14,R1,PRINTRSV  SAVE A FEW REGISTERS            GP99138 05060000
+         LA    R1,PRTBLOK    SET PARAMETER BLOCK ADDRESS        GP99138 05070000
+         L     R15,APR               PRINT MODULE ENTRY POINT   GP99138 05080000
+         BALR  R14,R15               LINK TO PRINT MODULE       GP99138 05090000
+PRINTREX LM    R14,R1,PRINTRSV  RESTORE REGISTERS               GP99138 05100000
+PRINTCLR MVI   PRTCC,C' '    PREPARE TO CLEAR                   GP99138 05110000
+         MVC   PRTDATA,PRTDATA-1   CLEAR PRINT LINE             GP99138 05120000
+         BR    R14                   RETURN                     GP99138 05130000
+         SPACE 1                                                GP99138 05140000
+PRTBLOK  PRTBLOK TYPE=CSECT  USE A SINGLE PRINT DEFINITION      GP99138 05150000
+         SPACE 1                                                GP10047 05160000
+PUNCHCRD MVC   PUNDATA,0(R1) COPY USER'S CARD                   GP10047 05170000
+PUNCHREC MVI   PRTCMD,$PRTPRT        SET COMMAND                GP10047 05180000
+PUNCHDAT STM   R14,R1,PRINTRSV  SAVE A FEW REGISTERS            GP10047 05190000
+         LA    R1,PUNBLOK    SET PARAMETER BLOCK ADDRESS        GP10047 05200000
+         L     R15,APU               PUNCH MODULE ENTRY POINT   GP10047 05210000
+         BALR  R14,R15               LINK TO PUNCH MODULE       GP10047 05220000
+         LM    R14,R1,PRINTRSV  RESTORE REGISTERS               GP10047 05230000
+         BR    R14                   RETURN                     GP10047 05240000
+         SPACE 1                                                GP10047 05250000
+PUNBLOK  PUNBLOK TYPE=CSECT  USE A SINGLE PUNCH DEFINITION      GP10047 05260000
+         SPACE 1                                                GP10047 05270000
+         LTORG ,                                                GP99138 05280000
+         POP   USING                                            GP99137 05290000
+TRCESAVE DC    16A(0)        TRACE REGISTER SAVE AREA           GP99138 05300000
+PRINTRSV DC    4A(0)         PRINT REGISTER SAVE AREA           GP99138 05310000
+MAINRSV  DC    4A(0)         STORAGE REGISTER SAVE AREA         GP99154 05320000
+         SPACE 1                                                GP99145 05330000
+HEXTRT   DC    256X'FF'      SET ALL CHARACTERS INVALID         GP99145 05340000
+         ORG   HEXTRT+C' '   SPECIAL VALUE FOR STOPPER          GP99172 05350000
+         DC    C' '                                             GP99172 05360000
+         ORG   HEXTRT+C'A'   DEFINE A-F                         GP99145 05370000
+         DC    6X'00'                                           GP99145 05380000
+         ORG   HEXTRT+X'81'  DEFINE A-F LOWER CASE              GP99145 05390000
+         DC    6X'00'                                           GP99145 05400000
+         ORG   HEXTRT+C'0'   DEFINE 0-9                         GP99145 05410000
+         DC    10X'00'                                          GP99145 05420000
+         ORG   HEXTRT+256    (JUST IN CASE)                     GP99145 05430000
+         SPACE 1                                                GP99145 05440000
+INTTRT   DC    256X'FF'      SET ALL CHARACTERS INVALID         GP99172 05450000
+         ORG   INTTRT+C' '   SPECIAL VALUE FOR STOPPER          GP99172 05460000
+         DC    C' '                                             GP99172 05470000
+         ORG   INTTRT+C'0'   DEFINE 0-9                         GP99172 05480000
+         DC    10X'00'                                          GP99172 05490000
+         ORG   INTTRT+256    (JUST IN CASE)                     GP99172 05500000
+         SPACE 1                                                GP99145 05510000
+BLKTRT   DC    256X'FF'      FIND A BLANK TABLE                 GP99145 05520000
+         ORG   BLKTRT+C' '   STOPPER                            GP99145 05530000
+         DC    X'04'         SIGNAL                             GP99145 05540000
+         ORG   BLKTRT+C'@'   AT                                 GP99145 05550000
+         DC    X'00'         VALID                              GP99145 05560000
+         ORG   BLKTRT+C'('   LEFT PARENTHESIS FOR DISASM09      GP99181 05570000
+         DC    X'00'         VALID                              GP99181 05580000
+         ORG   BLKTRT+C''''  APOSTROPHE/QUOTE FOR DISASM09      GP99181 05590000
+         DC    X'00'         VALID                              GP99181 05600000
+         ORG   BLKTRT+C'*'   ASTERISK FOR DISASM09              GP99184 05610000
+         DC    X'00'         VALID                              GP99184 05620000
+         ORG   BLKTRT+C'#'   NUMBER/POUND                       GP99145 05630000
+         DC    X'00'         VALID                              GP99145 05640000
+         ORG   BLKTRT+C'$'   DOLLAR                             GP99145 05650000
+         DC    X'00'         VALID                              GP99145 05660000
+         ORG   BLKTRT+C'_'   UNDERLINE                          GP99145 05670000
+         DC    X'00'         VALID                              GP99145 05680000
+         ORG   BLKTRT+C'A'   A-I                                GP99145 05690000
+         DC    9X'00'        VALID                              GP99145 05700000
+         ORG   BLKTRT+C'J'   J-R                                GP99145 05710000
+         DC    9X'00'        VALID                              GP99145 05720000
+         ORG   BLKTRT+C'S'   S-Z                                GP99145 05730000
+         DC    8X'00'        VALID                              GP99145 05740000
+         ORG   BLKTRT+C'0'   0-9                                GP99145 05750000
+         DC    10X'00'       VALID                              GP99145 05760000
+         ORG   BLKTRT+256    (JUST IN CASE)                     GP99145 05770000
+         SPACE 1                                                GP99145 05780000
+NBLTRT   DC    256X'FF'      FIND A NON-BLANK                   GP99145 05790000
+         ORG   NBLTRT+C' '   SKIPPER                            GP99145 05800000
+         DC    X'00'         SIGNAL                             GP99145 05810000
+         ORG   NBLTRT+256    (JUST IN CASE)                     GP99145 05820000
+         SPACE 2                                                        05830000
+*---------------------------------------------------------------------* 05840000
+*                                                                     * 05850000
+*          TRACE TABLE ENTRY                                          * 05860000
+*                                                                     * 05870000
+*---------------------------------------------------------------------* 05880000
+TRENTRY  DSECT                                                          05890000
+TREMOD   DS    CL8                 MODULE NAME                          05900000
+TREID    DS    CL8                 TRACE ID                             05910000
+TREDATA1 DS    CL8                 TRACE DATA 1                         05920000
+TREDATA2 DS    CL8                 TRACE DATA 2                         05930000
+TRENTRYL EQU   *-TRENTRY           ENTRY LENGTH                         05940000
+         SPACE 2                                                        05950000
+* ------------------------------------------------------------------- * 05960000
+*                                                                     * 05970000
+*        OPCODE DEFINITIONS                                           * 05980000
+*                                                                     * 05990000
+* ------------------------------------------------------------------- * 06000000
+OPDSECT  DSECT                                                          06010000
+OPMNEM   DS    CL6           MNEMONIC                                   06020000
+OPFLAG1  EQU   OPMNEM+1,1,C'B'  OPTAB ENTRY FLAGS               GP99137 06030000
+OPFLAG2  EQU   OPMNEM+2,1,C'B'  OPTAB ENTRY FLAGS               GP99137 06040000
+OPFLAG3  EQU   OPMNEM+3,1,C'B'  OPTAB ENTRY FLAGS               GP99137 06050000
+OPFORM   DS    X             FORMAT                                     06060000
+$OPE     EQU   X'00'         .. E FORMAT - OPERAND ONLY         GP99132 06070000
+$OPRR1   EQU   X'01'         .. RR FORMAT 1 (R1,R2)                     06080000
+$OPRR2   EQU   X'02'         .. RR FORMAT 2 (SVCS)                      06090000
+$OPRR3   EQU   X'03'         .. RR FORMAT 3 (BRANCHES)                  06100000
+$OPRR4   EQU   X'04'         .. RR FORMAT 4 (R1 ONLY)           GP99132 06110000
+$OPRR5   EQU   X'05'         .. RR FORMAT 5 (R2 ONLY)           GP99132 06120000
+$OPRRE   EQU   X'06'         .. RRE FORMAT 1 (R1,R2 IN +3 ONLY) GP99132 06130000
+$OPRX    EQU   X'07'         .. RX FORMAT                               06140000
+$OPRXA   EQU   X'08'         .. RX FORMAT, BUT NO R1            GP99132 06150000
+$OPS     EQU   X'09'         .. S FORMAT                                06160000
+$OPSI    EQU   X'0A'         .. SI (IMMEDIATE) FORMAT                   06170000
+$OPRI    EQU   X'0B'   1/2   .. RSI REG/REG/IMMEDIATE           GP99132 06180000
+$OPRSI   EQU   X'0B'   2/2   .. RSI REG/REG/IMMEDIATE           GP99132 06190000
+$OPRS1   EQU   X'0C'         .. RS FORMAT 1 (SHIFTS)                    06200000
+$OPRS2   EQU   X'0D'         .. RS FORMAT 2 (BXLE, BXH,  )              06210000
+$OPRS3   EQU   X'0E'         .. RS FORMAT 3 (MASK TYPE.. CLM, ICM..)    06220000
+$OPSS1   EQU   X'0F'         .. SS FORMAT 1 (CHARACTER)                 06230000
+$OPSS2   EQU   X'10'         .. SS FORMAT 2 (PACKED DECIMAL)            06240000
+$OPSS3   EQU   X'11'         .. SS FORMAT 3 (MVCK, MVCS, MVCP)          06250000
+$OPSS4   EQU   X'12'         .. SS FORMAT 4 (SRP)                       06260000
+$OPSSE   EQU   X'13'         .. SSE FORMAT  (ADDR,ADDR)         GP99132 06270000
+$OPRRE0  EQU   X'14'         .. RRE FORMAT  (NO REGS)           GP10018 06280000
+$OPRRE3  EQU   X'15'         .. RRE FORMAT  (R1 ONLY)           GP10018 06290000
+OPFLAGS  DS    X             FLAGS                                      06300000
+$OPEXT   EQU   X'80'         .. EXTENDED MNEMONICS                      06310000
+$OPSVC   EQU   X'40'         .. SVC                                     06320000
+$OPNCMNT EQU   X'20'         .. NO COMMENT                              06330000
+$OPREF   EQU   X'10'         .. GENERATES A LABEL REFERENCE             06340000
+$OPCCA   EQU   X'08'         .. SETS CONDITION CODE, ARITHMETIC         06350000
+$OPCCC   EQU   X'04'         .. SETS CONDITION CODE, COMPARE            06360000
+$OPCCL   EQU   X'02'         .. SETS CONDITION CODE, LOGICAL            06370000
+$OPMASK  EQU   X'01'         .. ENTRY HAS A MASK                GP10018 06380000
+OPENTSZ  EQU   *-OPDSECT     SIZE OF UNCOMMENTED ENTRY          GP99137 06390000
+OPMASK   DS    0XL6          (OPTIONAL) MASK                    GP10018 06400000
+OPCMNT   DS    0CL12         (OPTIONAL) COMMENT                 GP10018 06410000
+         SPACE 2                                                        06420000
+         AIF   ('&COMPRT' EQ 'ON').PRT020                               06430000
+         PRINT ON                                                       06440000
+.PRT020  ANOP                                                           06450000
+*---------------------------------------------------------------------* 06460000
+*                                                                     * 06470000
+*          ABEND REASON CODES                                         * 06480000
+*                                                                     * 06490000
+*---------------------------------------------------------------------* 06500000
+ABEND001 EQU   1                   REQUESTED VIA AN ABEND STATEMENT     06510000
+ABEND002 EQU   2                   UNKNOWN RETURN CODE FROM BLDL        06520000
+ABEND003 EQU   3                   UNKNOWN RLD ITEM TYPE                06530000
+ABEND004 EQU   4                   RLD DATA REMAINING WENT NEGATIVE     06540000
+ABEND005 EQU   5                   ATTEMPT TO GEN AN INSTR ON ODD ADDR  06550000
+         SPACE 1                                                GP99132 06560000
+         YREGS ,                   MNEMONIC REGISTER MAPPINGS   GP99132 06570000
+         MEXIT                                                          06580000
+.NONAME  ANOP                                                           06590000
+         MNOTE 12,'NAME IS REQUIRE WHEN TYPE=DSECT'                     06600000
+.MEXIT   ANOP                                                           06610000
+         MEXIT                                                          06620000
+         MEND                                                           06630000

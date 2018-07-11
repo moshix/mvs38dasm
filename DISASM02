@@ -1,0 +1,1383 @@
+DA02     TITLE 'DISASM02 - PARAMETER READER/INTERPRETER'                00010000
+         MACRO                                                          00020000
+         REG &REG,&VALUE                                                00030000
+         DC     CL3'&REG'            REGISTER NAME                      00040000
+         DC     AL1(&VALUE)          VALUE IN INSTRUCTIONS              00050000
+         MEND                                                           00060000
+         COPY  DISASMGB              COPY GLOBAL DEFINITIONS            00070000
+*--------------------------------------------------------------------*  00080000
+*                                                                    *  00090000
+*  Module name: DISASM02                                             *  00100000
+*                                                                    *  00110000
+*  Function:                                                         *  00120000
+*   Read the parameter statements.  All parameter statements         *  00130000
+*   including comment statements are copied to DISFRINT.  See the    *  00140000
+*   DISASM documentation for a list of the parameter statements      *  00150000
+*   and their syntax.                                                *  00160000
+*                                                                    *  00170000
+*--------------------------------------------------------------------*  00180000
+         PRINT NOGEN         SAVE A BUSH                        GP10080 00190000
+DISASM02 MODHEAD BASE=(R12,R10)      ENTRY HOUSEKEEPING         GP99140 00200000
+         USING REGDSCT,R4            DEFINE BASE                        00210000
+         TM    COMMDD,$INDD  IS INDD PRESENT?                   GP99167 00220000
+         BNZ   OPENIN        YES                                GP99167 00230000
+         TM    COMMDD,$ADADD+$LISTDD  ALTERNATE FUNCTION?       GP99167 00240000
+         BNZ   EXIT0000      YES; JUST SET PRINT FLAGS          GP99167 00250000
+OPENIN   OPEN  (DISIN,INPUT)         OPEN DISIN                 GP99167 00260000
+         MVC   COMMSUBH(SUBHEADL),SUBHEAD                               00270000
+         LA    R1,SUBHEADL           SUBHEADING LENGTH                  00280000
+         STH   R1,COMMSUBL           SET LENGTH                         00290000
+*OLD*    TM    PGMFLAG,$SUBH         HAS SUB-HEADING BEEN PRINTED?      00300000
+*OLD*    BO    PARM0010              YES                        GP99149 00310000
+*OLD*    OI    PGMFLAG,$SUBH         SET FLAG                   GP99149 00320000
+         MVI   PRTCMD,$PRTSUBH       SET COMMAND                GP99149 00330000
+         BAL   R14,PRINTDAT          LINK TO PRINT MODULE       GP99138 00340000
+         SPACE 2                                                        00350000
+*---------------------------------------------------------------------* 00360000
+*   READ SYSIN INPUT UNTIL END                                        * 00370000
+*---------------------------------------------------------------------* 00380000
+PARM0010 GET   DISIN,PRTDATA+5       READ A CONTROL STATEMENT   GP10085 00390000
+         MVC   CTLSTMT,PRTDATA+5                                GP10085 00400000
+         OI    PGMFLAG,$PFHAVE  HAD INPUT                       GP99167 00410000
+         BAL   R9,PRT0000            PRINT CONTROL STATEMENT            00420000
+         CLI   CTLSTMT,C'*'          IS IT A COMMENT?                   00430000
+         BE    PARM0010              YES; IGNORE                        00440000
+         CLC   CTLSTMT(72),COMMBLKS  IS IT A SPACER ?           GP10085 00450000
+         BE    PARM0010              YES; IGNORE                GP10085 00460000
+         SPACE 1                                                        00470000
+         LA    R1,CNTLTBLE           CONTROL TABLE ADDRESS              00480000
+         LA    R0,CNTLTBL#           NUMBER OF ENTRIES          GP10085 00490000
+PARM0020 CLC   CTLTYPE,0(R1)         DEFINED CONTROL STATEMENT?         00500000
+         BE    PARM0030              YES                                00510000
+         LA    R1,CNTLTBLL(,R1)      NEXT KEYWORD/ADDRESS       GP10085 00520000
+         BCT   R0,PARM0020           LOOP                       GP10085 00530000
+         MVC   PRTDATA(EMSG03L),EMSG03                                  00540000
+         BAL   R9,PRT0000            PRINT MESSAGE                      00550000
+         OI    COMMFLAG,$ABORT       SET ABORT FLAG                     00560000
+         B     PARM0010              READ NEXT STATEMENT                00570000
+         SPACE 1                                                        00580000
+PARM0030 ICM   R15,15,9(R1)          INSERT ADDRESS                     00590000
+         BR    R15                   BRANCH TO PROPER ROUTINE           00600000
+* ------------------------------------------------------------------- * 00610000
+*                                                                     * 00620000
+*          Set ABEND flag                                             * 00630000
+*                                                                     * 00640000
+* ------------------------------------------------------------------- * 00650000
+ABEND000 DS    0H                                                       00660000
+         ITRACE ID=ABEND             ABEND AT EXIT                      00670000
+         OI    COMMFLAG,$ABEND       SET ABEND FLAG                     00680000
+         B     PARM0010                                                 00690000
+* ------------------------------------------------------------------- * 00700000
+*                                                                     * 00710000
+*    Process ADATA, LIST, and SYSADATA options                        * 00720000
+*                                                                     * 00730000
+* ------------------------------------------------------------------- * 00740000
+ADATA000 ITRACE ID=ADATA                                        GP99167 00750000
+         LA    R1,CTLTYPE+1                                     GP99167 00760000
+         LA    R2,1          INCREMENT                          GP99167 00770000
+         LA    R3,CTL70                                         GP99167 00780000
+ADATA010 CLI   0(R1),C' '    LEADING BLANK YET?                 GP99167 00790000
+         BE    ADATA020      YES; NOW GET NON-BLANK             GP99167 00800000
+         BXLE  R1,R2,ADATA010  TRY AGAIN                        GP99167 00810000
+         B     ADATA099      COMPLAIN AND IGNORE                GP99167 00820000
+ADATA020 CLI   0(R1),C' '    NON-BLANK?                         GP99167 00830000
+         BNE   ADATA030      YES; START COMPARE                 GP99167 00840000
+         BXLE  R1,R2,ADATA020  TRY AGAIN                        GP99167 00850000
+         B     PARM0010                                         GP99167 00860000
+ADATA030 LM    R5,R7,ADATAOPT  GET ADATA OPTIONS                GP99167 00870000
+         SR    R15,R15       CLEAR FOR LENGTH IC                GP99167 00880000
+ADATA040 IC    R15,0(,R5)    GET VERB LENGTH                    GP99167 00890000
+         EX    R15,EXPRTCLC  LOOK FOR MATCH                     GP99167 00900000
+         BE    ADATA100      WOW                                GP99167 00910000
+         BXLE  R5,R6,ADATA040  TRY AGAIN                        GP99167 00920000
+ADATA099 MVC   PRTDATA(EMSG33L),EMSG33  INVALID STATEMENT       GP09181 00930000
+         MVI   PRTDATA+EMSG33L+1,C':'                           GP09181 00940000
+         MVC   PRTDATA+EMSG33L+3(8),0(R1)                       GP09181 00950000
+         BAL   R9,PRT0000                                       GP99167 00960000
+         B     PARM0010              IGNORE REMAINDER           GP99167 00970000
+ADATA100 NC    PRINTFG3(1),2(R5)   RESET FLAG FOR THIS OPTION   GP99167 00980000
+         OC    PRINTFG3(1),1(R5)   SET FLAG FOR THIS OPTION     GP99167 00990000
+         AR    R1,R15        SKIP OVER MATCHED TEXT             GP99167 01000000
+         B     ADATA010      GET NEXT SPACE AND OPERAND         GP99167 01010000
+ADATAOPT DC    A(ADATAO1,ADATAO2-ADATAO1,ADATAOL)               GP99167 01020000
+ADATAO1  DC    AL1(05,$PFMAC,255),CL10'MACRO '                  GP99167 01030000
+ADATAO2  DC    AL1(03,$PFMAC,255),CL10'MAC   '                  GP99167 01040000
+         DC    AL1(04,$PFCOPY,255),CL10'COPY '                  GP99167 01050000
+         DC    AL1(06,0,255-$PFCOPY),CL10'NOCOPY '              GP99167 01060000
+         DC    AL1(07,0,255-$PFMAC),CL10'NOMACRO'               GP99167 01070000
+         DC    AL1(05,0,255-$PFMAC),CL10'NOMAC'                 GP99167 01080000
+         DC    AL1(06,$PFMAC+$PFCOPY,255),CL10'EXPAND'          GP99167 01090000
+ADATADEF DC    AL1(07,0,255),CL10'DEFAULT'                      GP99167 01100000
+         DC    AL1(04,0,255),CL10'MOST       '                  GP99167 01110000
+ADATAOL  DC    AL1(03,0,255),CL10'ALL '                         GP99167 01120000
+* ------------------------------------------------------------------- * 01130000
+*                                                                     * 01140000
+*          Process assembler input                                    * 01150000
+*                                                                     * 01160000
+* ------------------------------------------------------------------- * 01170000
+ASM0000  DS    0H                                                       01180000
+         ITRACE ID=ASMSTART                                             01190000
+         CLI   CTL10,C' '    USER SPECIFIED?                    GP99139 01200000
+         BNE   ASM0015       YES; KEEP IT                       GP99139 01210000
+         MVC   CTLSTMT+10(2),=C'0 '  MAKE ACCEPTABLE OFFSET     GP99139 01220000
+         B     ASM0015       WRITE THE 'ASM START ' CARD        GP99139 01230000
+ASM0010  DS    0H                                                       01240000
+         GET   DISIN,CTLSTMT         READ A CONTROL STATEMENT           01250000
+         MVC   PRTDATA+8(CTLSTMTL),CTLSTMT                      GP99139 01260000
+         BAL   R9,PRT0000            PRINT CONTROL STATEMENT    GP99139 01270000
+         CLC   CTLTYPE,CNTLASME      ASSEMBLER INPUT (END)?     GP99139 01280000
+         BE    ASM0030               YES                                01290000
+ASM0015  TM    PGMFLAG,$ASMOPEN      ASSEMBLER DCB OPEN?        GP99139 01300000
+         BO    ASM0020               YES                                01310000
+         OI    PGMFLAG,$ASMOPEN      INDICATE DCB IS OPEN               01320000
+         OI    COMMFLAG,$ASMIN       INDICATE ASSEMBLER INPUT PRESENT   01330000
+         OPEN  (SYSIN,OUTPUT)        OPEN SYSIN DCB                     01340000
+         PUT   SYSIN,=CL80'PRINT    OPSYN ANOP  '               GP10025 01350000
+ASM0020  DS    0H                                                       01360000
+         TM    PGMFLAG,$AFLUSH   END CARD ALREADY DONE?         GP99139 01370000
+         BNZ   ASM0025           YES; DON'T WRITE AGAIN         GP99139 01380000
+         PUT   SYSIN,CTLSTMT         COPY CONTROL STATEMENT TO SYSIN    01390000
+         LA    R14,1                                            GP99139 01400000
+         LA    R15,CTLSTMT+20                                   GP99139 01410000
+         LA    R1,CTLSTMT                                       GP99139 01420000
+ASM0022  CLC   =C' END ',0(R1)   USER SUPPLIED END STATEMENT?   GP99139 01430000
+         BE    ASM0028       YES; QUIT NOW                      GP99139 01440000
+         BXLE  R1,R14,ASM0022    CONTINUE CHECKING              GP99139 01450000
+         B     ASM0010               LOOP UNTIL EOF OR 'ASM END'        01460000
+ASM0025  LA    R1,EMSG26     SHOW CARD IGNORED                  GP99139 01470000
+         BAL   R14,PRINTMSG  PRINT IT                           GP99139 01480000
+         B     ASM0010       READ NEXT                          GP99139 01490000
+ASM0028  OI    PGMFLAG,$AFLUSH   INDICATE END CARD FOUND        GP99139 01500000
+         B     ASM0010           AND LOOP AGAIN                 GP99139 01510000
+ASM0030  DS    0H                                                       01520000
+         TM    PGMFLAG,$ASMOPEN      ASSEMBLER DCB OPEN?        GP99139 01530000
+         BZ    ASM0035       NO; OOPS                           GP99139 01540000
+         TM    PGMFLAG,$AFLUSH   END CARD ALREADY DONE?         GP99139 01550000
+         BNZ   ASM0035           YES; DON'T WRITE AGAIN         GP99139 01560000
+         MVI   CTLSTMT,C' '                                     GP99139 01570000
+         MVC   CTLSTMT+1(79),CTLSTMT  BLANK IT                  GP99139 01580000
+         MVC   CTLSTMT+9(3),=C'END'                             GP99139 01590000
+         PUT   SYSIN,CTLSTMT   WRITE FINAL END CARD             GP99139 01600000
+ASM0035  DS    0H                                               GP99139 01610000
+         ITRACE ID=ASMEND                                               01620000
+         B     PARM0010              READ NEXT CONTROL STATEMENT        01630000
+* ------------------------------------------------------------------- * 01640000
+*                                                                     * 01650000
+*          Process BASE statements                                    * 01660000
+*                                                                     * 01670000
+* ------------------------------------------------------------------- * 01680000
+BASE0000 DS    0H                                                       01690000
+         ITRACE ID=BASE                                                 01700000
+         LA    R1,CTL10              REGISTER NAME'S ADDRESS            01710000
+         BAL   R9,REG0000            FIND REGISTER TABLE ENTRY          01720000
+* ------------------------------------------------------------------- * 01730000
+*       R4 POINTS TO REGISTER TABLE ENTRY                             * 01740000
+* ------------------------------------------------------------------- * 01750000
+         LA    R1,8                  MAX DIGITS                         01760000
+         LA    R2,CTL20              FIRST CHARACTER OF DISPLACEMENT    01770000
+         BAL   R9,HEX0000            CONVERT DISPLACEMENT TO HEX        01780000
+         MVC   SAVEBEGN,DISPOUT      SAVE BEGINNING DISPLACEMENT        01790000
+         CLC   CTL30,COMMBLKS        ENDING DISPLACEMENT BLANK?         01800000
+         BE    BASE0010              YES                                01810000
+         LA    R1,8                  MAX DIGITS                         01820000
+         LA    R2,CTL30              FIRST CHARACTER OF DISPLACEMENT    01830000
+         BAL   R9,HEX0000            CONVERT DISPLACEMENT TO HEX        01840000
+         MVC   SAVEEND,DISPOUT       SAVE ENDING DISPLACEMENT           01850000
+         CLC   SAVEBEGN,SAVEEND      BEGIN LARGER THAN END?             01860000
+         BH    BASE0060              YES.. INVALID                      01870000
+         B     BASE0030                                                 01880000
+BASE0010 DS    0H                                                       01890000
+         L     R1,SAVEBEGN           BEGINNING POINT            GP99172 01900000
+         AH    R1,H4096              PLUS 4K                            01910000
+         ST    R1,SAVEEND            SAVE ENDING POINT          GP99172 01920000
+BASE0030 DS    0H                                                       01930000
+         LA    R1,8                  MAX DIGITS                         01940000
+         LA    R2,CTL40              FIRST CHARACTER OF DISPLACEMENT    01950000
+         BAL   R9,HEX0000            CONVERT DISPLACEMENT TO HEX        01960000
+         LA    R5,COMMBASE           SET PREVIOUS FORWARD POINTER       01970000
+         ICM   R3,15,COMMBASE        FIRST BASE ENTRY                   01980000
+         USING BASEDSCT,R3           DEFINE BASE                        01990000
+         BZ    BASE0050              NO BLOCK'S ON CHAIN                02000000
+BASE0040 DS    0H                                                       02010000
+         CLC   BASEBEGN,DISPOUT      INSERT IT HERE?                    02020000
+         BL    BASE0050              YES                                02030000
+         LA    R5,BASENEXT           FORWARD POINTER'S ADDRESS          02040000
+         ICM   R3,15,BASENEXT        NEXT BASE BLOCK                    02050000
+         BNZ   BASE0040              LOOP                               02060000
+BASE0050 LA    R0,BASEL                                         GP99140 02070000
+         BAL   R14,GETMAIN           ACQUIRE STORAGE FOR NEW BASE BLOCK 02080000
+         ITRACE ID=NEWBASE,          NEW BLOCK ACQUIRED                +02090000
+               RDATA1=R1             .. CAPTURE STORAGE ADDRESS         02100000
+         ST    R1,0(,R5)             CHAIN PREVIOUS BLOCK TO NEW BLOCK  02110000
+         ST    R3,BASENEXT-BASEDSCT(,R1)  CHAIN NEXT BLOCK TO NEW BLOCK 02120000
+         LR    R3,R1                 SET BASE                           02130000
+         MVC   BASEEYE,CNTLBASE      SET BLOCK IDENTIFIER               02140000
+         MVC   BASEBEGN,SAVEBEGN     SET STARTING DISPLACEMENT          02150000
+         MVC   BASEEND,SAVEEND       SET ENDING DISPLACEMENT            02160000
+         MVC   BASEREG,REGVALUE      SET BASE REGISTER                  02170000
+         MVC   BASEDISP,DISPOUT      SET DISPLACEMENT BASE REFERS TO    02180000
+         B     PARM0010              READ NEXT CONTROL STATEMENT        02190000
+BASE0060 DS    0H                                                       02200000
+         MVC   PRTDATA(EMSG23L),EMSG23                                  02210000
+         OI    COMMFLAG,$ERROR+$ABORT                                   02220000
+         BAL   R9,PRT0000            PRINT MESSAGE                      02230000
+         B     PARM0010              READ NEXT CONTROL STATEMENT        02240000
+* ------------------------------------------------------------------- * 02250000
+*                                                                     * 02260000
+*          Process CSECT statements                                   * 02270000
+*                                                                     * 02280000
+* ------------------------------------------------------------------- * 02290000
+CSCT0000 DS    0H                                                       02300000
+         ITRACE ID=CSCTNAME,         CSECT NAME                        +02310000
+               DATA1=CTLDATA                                            02320000
+         MVC   COMMCSNM,CTLDATA      SET CSECT NAME                     02330000
+         B     PARM0010                                                 02340000
+* ------------------------------------------------------------------- * 02350000
+*                                                                     * 02360000
+*          Process DATA statements                                    * 02370000
+*                                                                     * 02380000
+* ------------------------------------------------------------------- * 02390000
+DATA0000 DS    0H                                                       02400000
+         ITRACE ID=DATA                                                 02410000
+         LA    R1,8                  MAX DIGITS                         02420000
+         LA    R2,CTL10              FIRST CHARACTER OF DISPLACEMENT    02430000
+         BAL   R9,HEX0000            CONVERT DISPLACEMENT TO HEX        02440000
+         MVC   SAVEBEGN,DISPOUT      SAVE BEGINNING DISPLACEMENT        02450000
+         LA    R1,8                  MAX DIGITS                         02460000
+         LA    R2,CTL20              FIRST CHARACTER OF END DISP        02470000
+         BAL   R9,HEX0000            CONVERT END DISP TO HEX            02480000
+         CLC   SAVEBEGN,DISPOUT      VALID RANGE ?              GP05168 02490000
+         BH    BASE0060              NO; FAIL                   GP05168 02500000
+         LA    R2,COMMDATA           DATA BLOCK ANCHOR                  02510000
+         ICM   R3,15,COMMDATA        FIRST DATA BLOCK                   02520000
+         USING DATADSCT,R3           DEFINE BASE                        02530000
+         BZ    DATA0030              NO DATA BLOCKS                     02540000
+DATA0010 DS    0H                                                       02550000
+         CLC   DATAEND,SAVEBEGN      BELOW THIS AREA?                   02560000
+         BL    DATA0020              YES                                02570000
+         CLC   DATABEGN,DISPOUT      ABOVE THIS AREA?                   02580000
+         BH    DATA0030              YES                                02590000
+         B     DATA0040              OVERLAPS PREVIOUSLY DEFINED AREA   02600000
+DATA0020 DS    0H                                                       02610000
+         LA    R2,DATANEXT           FORWARD POINTER ADDRESS            02620000
+         ICM   R3,15,DATANEXT        NEXT DATA BLOCK                    02630000
+         BNZ   DATA0010              LOOP                               02640000
+DATA0030 LA    R0,DATAL                                         GP99140 02650000
+         BAL   R14,GETMAIN           ACQUIRE STORAGE FOR NEW DATA BLOCK 02660000
+         ITRACE ID=NEWDATA,          NEW DATA BLOCK ADQUIRED           +02670000
+               RDATA1=R1             .. NEW BLOCK'S ADDRESS             02680000
+         ST    R1,0(,R2)             PREVIOUS BLOCK TO NEW BLOCK        02690000
+         ST    R3,DATANEXT-DATADSCT(,R1)  CHAIN NEXT BLOCK TO NEW BLOCK 02700000
+         LR    R3,R1                 SET BASE REG                       02710000
+         MVC   DATAEYE,CNTLDATA      SET BLOCK IDENTIFIER               02720000
+         MVC   DATABEGN,SAVEBEGN     SET BEGINNING DISPLACEMENT         02730000
+         MVC   DATAEND,DISPOUT       SET ENDING DISPLACEMENT            02740000
+         L     R1,DATAEND            ENDING DISPLACEMENT        GP99172 02750000
+         S     R1,DATABEGN           BEGINNING DISPLACEMENT     GP99172 02760000
+         LA    R1,1(,R1)             TOTAL LENGTH                       02770000
+         ST    R1,DATALEN    SET LENGTH                         GP99172 02780000
+         STH   R1,DATAILEN   SET LENGTH                         GP99172 02790000
+         MVI   DATATYPE,$DATAUSR     USER DEFINED DATA AREA             02800000
+         CLI   CTLTYPE,C'D'  INVOKED WITH DATA ?                GP10029 02810000
+         BE    *+8           YES                                GP10029 02820000
+         MVI   DATATYPE,$DATADS      DEFINE AS DS FILLER        GP10029 02830000
+         OI    COMMOPFG,$OFZERO      REMEMBER USE OF FILLER     GP10066 02840000
+         MVC   DATANAME,COMMBLKS     INITIALIZE NAME                    02850000
+*OBS*    XC    DATALBA,DATALBA       INITIALIZE DATA BLOCK'S ADDRESS    02860000
+         CLI   CTL30,C' '    USER SPECIFIED DATA TYPE?          GP99169 02870000
+         BNH   PARM0010      NO                                 GP99169 02880000
+         MVC   DATAASMT,CTL30  ELSE SAVE IT                     GP99169 02890000
+         CLI   CTL40,C' '    USER SPECIFIED ITEM LENGTH?        GP99169 02900000
+         BNH   PARM0010      NO                                 GP99169 02910000
+         LA    R1,5          MAX LENGTH                         GP99172 02920000
+         LA    R2,CTL40      POINT TO ITEM LENGTH               GP99172 02930000
+         BAL   R9,INTG000    CONVERT TO INTEGER                 GP99172 02940000
+         STH   R0,DATAILEN   SET ITEM LENGTH                    GP99172 02950000
+         B     PARM0010              READ NEXT CONTROL STATEMENT        02960000
+DATA0040 DS    0H                                                       02970000
+         ITRACE ID=DATAOVLP          DATA AREA OVERLAP                  02980000
+         UNPK  EMSG22A(5),DATABEGN+2(3)                         GP10037 02990000
+         TR    EMSG22A,COMMHXTR      TRANSLATE TO PRINTABLE             03000000
+         MVI   EMSG22A+4,C' '        RESTORE BLANK                      03010000
+         UNPK  EMSG22B(5),DATAEND+2(3) UNPACK END DISPLACEMENT  GP10037 03020000
+         TR    EMSG22B,COMMHXTR      TRANSLATE TO PRINTABLE             03030000
+         MVI   EMSG22B+4,C' '        RESTORE BLANK                      03040000
+         MVC   PRTDATA(EMSG22L),EMSG22                                  03050000
+         OI    COMMFLAG,$ERROR+$ABORT                                   03060000
+         BAL   R9,PRT0000            PRINT MESSAGE                      03070000
+         B     PARM0010              READ NEXT CONTROL STATEMENT        03080000
+* ------------------------------------------------------------------- * 03090000
+*                                                                     * 03100000
+*          LABEL STATEMENTS - DEFINE USER LABELS                      * 03110000
+*                                                                     * 03120000
+* ------------------------------------------------------------------- * 03130000
+LABL0000 DS    0H                                               GP99134 03140000
+         CLI   CTL10,C' '    LABEL SPECIFIED?                   GP99139 03150000
+         BE    LABL9990      NO; FAIL                           GP99139 03160000
+         CLC   =C'DATA',CTL10  RESERVED WORD ?                  GP99139 03170000
+         BE    LABL9990      YES; FAIL                          GP99139 03180000
+         LA    R1,8                  MAX DIGITS                 GP99139 03190000
+         LA    R2,CTL20              FIRST CHARACTER OF DISPLACEMENT    03200000
+         BAL   R9,HEX0000            CONVERT DISPLACEMENT TO HEX        03210000
+         ITRACE ID=ADDLABEL,         CSECT REFERENCE                   +03220000
+               DATA1=DISPOUT         .. DISPLACEMENT REFERENCED GP99139 03230000
+         LA    R3,COMMLABL           FORWARD POINTER'S ADDRESS  GP99139 03240000
+         ICM   R9,15,COMMLABL        FIRST CSECT LABEL          GP99139 03250000
+         USING LABLDSCT,R9           DEFINE BASE                GP99139 03260000
+         BZ    LABL1170              INSERT ON END OF CHAIN     GP99139 03270000
+LABL1160 DS    0H                                               GP99139 03280000
+         CLC   LABLDISP,DISPOUT      TEST DISPLACEMENT          GP99139 03290000
+         BE    LABL1190              DUPLICATE                  GP99139 03300000
+         BH    LABL1170              INSERT NEW NAME HERE       GP99139 03310000
+         LA    R3,LABLNEXT           CURRENT BLOCK'S FWD POINTER ADDR   03320000
+         ICM   R9,15,LABLNEXT        NEXT CSECT LABEL           GP99139 03330000
+         BNZ   LABL1160              LOOP                       GP99139 03340000
+LABL1170 LA    R0,LABLL                                         GP99139 03350000
+         BAL   R14,GETMAIN           ACQUIRE STORAGE FOR NEW LABL BLOCK 03360000
+         ITRACE ID=NEWLABL,          NEW CSECT LABEL                   +03370000
+               RDATA1=R1,            .. BLOCK'S ADRESS                 +03380000
+               DATA2=DISPOUT         .. LABEL'S DISPLACEMENT    GP99139 03390000
+         ST    R1,LABLNEXT-LABLDSCT(,R3) PREVIOUS BLOCK'S FWD POINTER   03400000
+         ST    R9,LABLNEXT-LABLDSCT(,R1) NEXT BLOCK'S ADDRESS   GP99139 03410000
+         LR    R9,R1                 SET BASE                   GP99139 03420000
+         MVI   LABLSRCE,$LABLU SHOW SUPPLIED BY USER            GP99139 03430000
+         MVC   LABLEYE,=CL8'LABL'    SET BLOCK ID               GP99139 03440000
+         MVC   LABLNAME,CTL10        SET LABEL'S NAME           GP99139 03450000
+         MVC   LABLDISP,DISPOUT      SET DISPLACEMENT           GP99139 03460000
+         MVC   LABLTYPE,CTL30  MOVE POSSIBLE TYPE               GP99139 03470000
+         CLI   CTL30,C' '    USER SPECIFIED TYPE?               GP99139 03480000
+         BNE   LABL1180                                         GP99139 03490000
+         CLI   LABLTYPE,C'D'   DATA?                            GP99139 03500000
+         BE    PARM0010      YES; PROCESS                       GP99139 03510000
+         CLI   LABLTYPE,C'I'   INSTRUCTION?                     GP99139 03520000
+         BE    PARM0010      YES; PROCESS                       GP99139 03530000
+LABL1180 MVI   LABLTYPE,$LABLU       SET LABEL TYPE - USER'S    GP99139 03540000
+         B     PARM0010                                         GP99134 03550000
+LABL1190 LA    R1,EMSG25     SET DUPLICATE OR OVERLAPPING       GP99139 03560000
+         B     LABL9995                                         GP99139 03570000
+LABL9990 LA    R1,EMSG24     SET MALFORMED                      GP99139 03580000
+LABL9995 OI    COMMFLAG,$ERROR+$ABORT  NOT GOOD                 GP99139 03590000
+         BAL   R14,PRINTMSG  PRINT ERROR MESSAGE                GP99139 03600000
+         B     PARM0010                                         GP99134 03610000
+* ------------------------------------------------------------------- * 03620000
+*                                                                     * 03630000
+*          Line count statements                                      * 03640000
+*                                                                     * 03650000
+* ------------------------------------------------------------------- * 03660000
+LINE0000 DS    0H                                                       03670000
+         ITRACE ID=LINES                                                03680000
+         MVC   LINEIN,LINEIN-1       INITIALIZE WITH ZEROS              03690000
+         LA    R1,CTL10              FIRST DIGIT                        03700000
+         LA    R2,3                  MAX DIGITS                         03710000
+LINE0010 DS    0H                                                       03720000
+         CLI   0(R1),C' '            BLANK                              03730000
+         BE    LINE0020              YES                                03740000
+         CLI   0(R1),C'0'            INVALID DIGIT?                     03750000
+         BL    LINE0030              YES                                03760000
+         CLI   0(R1),C'9'            INVALID DIGIT?                     03770000
+         BH    LINE0030              YES                                03780000
+         MVC   LINEIN(L'LINEIN-1),LINEIN+1 SHIFT DIGITS LEFT 1          03790000
+         MVC   LINEIN+2(1),0(R1)     INSERT IN LOW ORDER POSITION       03800000
+         LA    R1,1(,R1)             NEXT DIGIT                         03810000
+         BCT   R2,LINE0010           LOOP                               03820000
+LINE0020 DS    0H                                                       03830000
+         CLC   0(6,R1),COMMBLKS      SEVERAL TRAILING BLANKS?           03840000
+         BNE   LINE0040              NO                                 03850000
+         PACK  LINEOUT,LINEIN        PACK LINE COUNT                    03860000
+         CP    LINEOUT,PMIN          LESS THAN MINIMUM?                 03870000
+         BL    LINE0050              YES                                03880000
+         ZAP   COMMMAXL,LINEOUT      SET MAX LINE COUNT                 03890000
+         B     PARM0010              READ NEXT CONTROL STATEMENT        03900000
+LINE0030 DS    0H                                                       03910000
+         MVC   PRTDATA(EMSG16L),EMSG16                                  03920000
+         OI    COMMFLAG,$ERROR+$ABORT                                   03930000
+         BAL   R9,PRT0000            PRINT MESSAGE                      03940000
+         B     PARM0010                                                 03950000
+LINE0040 DS    0H                                                       03960000
+         MVC   PRTDATA(EMSG17L),EMSG17                                  03970000
+         OI    COMMFLAG,$ERROR+$ABORT                                   03980000
+         BAL   R9,PRT0000            PRINT MESSAGE                      03990000
+         B     PARM0010                                                 04000000
+LINE0050 DS    0H                                                       04010000
+         MVC   PRTDATA(EMSG18L),EMSG18                                  04020000
+         OI    COMMFLAG,$ERROR+$ABORT                                   04030000
+         BAL   R9,PRT0000            PRINT MESSAGE                      04040000
+         B     PARM0010                                                 04050000
+* ------------------------------------------------------------------- * 04060000
+*                                                                     * 04070000
+*          Process MODULE Statements                                  * 04080000
+*                                                                     * 04090000
+* ------------------------------------------------------------------- * 04100000
+MOD0000  DS    0H                                                       04110000
+         ITRACE ID=MODNAME,          MODULE NAME                       +04120000
+               DATA1=CTLDATA                                            04130000
+         MVC   COMMMOD,CTLDATA       SET MODULE NAME                    04140000
+         CLI   CTL20,C' '    SECOND PARAMETER PRESENT ?         GP99149 04150000
+         BE    PARM0010      NO                                 GP99149 04160000
+         MVC   COMMCSNM,CTL20  TREAT AS CSECT NAME              GP99149 04170000
+         B     PARM0010                                                 04180000
+* ------------------------------------------------------------------- * 04190000
+*                                                                     * 04200000
+*          PREFIX STATEMENTS (LABEL NOW DEFINES USER LABELS)          * 04210000
+*                                                                     * 04220000
+* ------------------------------------------------------------------- * 04230000
+PRFX0000 DS    0H                                               GP99134 04240000
+         ITRACE ID=PREFIX                                       GP99134 04250000
+         CLC   COMMPFX,COMMBLKS      PREFIX STILL BLANK?        GP99134 04260000
+         BNE   PRFX0030              NO.. DUPLICATED            GP99134 04270000
+         CLI   CTL10,C' '            PREFIX BLANK?              GP99134 04280000
+         BE    PRFX0040              YES.. INVALID              GP99134 04290000
+         CLC   CTL10(4),CNTLDATA     PREFIX 'DATA'?             GP99134 04300000
+         BE    PRFX0050              YES.. NOT VALID            GP99134 04310000
+         LA    R1,CTL10              FIRST CHARACTER OF PREFIX  GP99134 04320000
+         LA    R2,4                  MAXIMUM LENGTH             GP99134 04330000
+         SR    R3,R3                 INITIALIZE FOR LENGTH      GP99134 04340000
+PRFX0010 DS    0H                                               GP99134 04350000
+         CLI   0(R1),C' '            BLANK?                     GP99134 04360000
+         BE    PRFX0020              YES                        GP99134 04370000
+         LA    R1,1(,R1)             NEXT                       GP99134 04380000
+         LA    R3,1(,R3)             ADD 1 TO LENGTH            GP99134 04390000
+         BCT   R2,PRFX0010           LOOP                       GP99134 04400000
+PRFX0020 DS    0H                                               GP99134 04410000
+         CLC   COMMBLKS(4),0(R1)     A FEW BLANKS?              GP99134 04420000
+         BNE   PRFX0060              NO                         GP99134 04430000
+         MVC   COMMPFX,CTL10         SET PREFIX                 GP99134 04440000
+         STH   R3,COMMPFXL           SET PREFIX LENGTH          GP99134 04450000
+         B     PARM0010              READ NEXT CONTROL STATEMENT        04460000
+PRFX0030 DS    0H                                               GP99134 04470000
+         OI    COMMFLAG,$ERROR+$ABORT                           GP99134 04480000
+         MVC   PRTDATA(EMSG19L),EMSG19                          GP99134 04490000
+         BAL   R9,PRT0000            PRINT MESSAGE              GP99134 04500000
+         B     PARM0010              READ NEXT CONTROL STATEMENT        04510000
+PRFX0040 DS    0H                                               GP99134 04520000
+         OI    COMMFLAG,$ERROR+$ABORT                           GP99134 04530000
+         MVC   PRTDATA(EMSG11L),EMSG11                          GP99134 04540000
+         BAL   R9,PRT0000            PRINT MESSAGE              GP99134 04550000
+         B     PARM0010              READ NEXT CONTROL STATEMENT        04560000
+PRFX0050 DS    0H                                               GP99134 04570000
+         OI    COMMFLAG,$ERROR+$ABORT                           GP99134 04580000
+         MVC   PRTDATA(EMSG15L),EMSG15                          GP99134 04590000
+         BAL   R9,PRT0000            PRINT MESSAGE              GP99134 04600000
+         B     PARM0010              READ NEXT CONTROL STATEMENT        04610000
+PRFX0060 DS    0H                                               GP99134 04620000
+         OI    COMMFLAG,$ERROR+$ABORT                           GP99134 04630000
+         MVC   PRTDATA(EMSG12L),EMSG12                          GP99134 04640000
+         BAL   R9,PRT0000            PRINT MESSAGE              GP99134 04650000
+         B     PARM0010              READ NEXT CONTROL STATEMENT        04660000
+* ------------------------------------------------------------------- * 04670000
+*                                                                     * 04680000
+*        OPTIONS STATEMENTS - DEFINE (MINOR) PROCESSING OPTIONS       * 04690000
+*                                                                     * 04700000
+*   ABSR    EXPAND REGISTERS AS 0-15 RATHRE THAN R0-R15               * 04710000
+*   BC      EXPAND BC AS BC, BCR AS BCR; DON'T USE MNEMONICS          * 04720000
+*   IXSWAP  TREAT DDD(X,0) AS DDD(0,X) FOR LABEL LOOKUP               * 04730000
+*   LOWER   ACCEPT LOWER CASE IN CHARACTER DATA (ELSE GEN AS HEX)     * 04740000
+*   PLS     EXPAND REGISTERS AS @nn (PL/S, BLS STYLE)                 * 04750000
+*   ROUND   INCREASE CSECT LENGTH TO MULTIPLE OF EIGHT                * 04760000
+*   S360    USE SYSTEM/360 UNIVERSAL INSTRUCTIONS (NO SSM, NO I/O)    * 04770000
+*   S370  (DEFAULT) USE S/370 INSTRUCTION SET (NO SSM, NO I/O)        * 04780000
+*   S390    USE S/390 INSTRUCTION SET (NO I/O, ETC)                   * 04790000
+*                                                                     * 04800000
+* ------------------------------------------------------------------- * 04810000
+OPTS000  ITRACE ID=OPTIONS                                      GP08063 04820000
+         LA    R1,CTLTYPE+1                                     GP08063 04830000
+         LA    R2,1          INCREMENT                          GP08063 04840000
+         LA    R3,CTL70                                         GP08063 04850000
+OPTS0010 CLI   0(R1),C' '    LEADING BLANK YET?                 GP08063 04860000
+         BE    OPTS0020      YES; NOW GET NON-BLANK             GP08063 04870000
+         BXLE  R1,R2,OPTS0010  TRY AGAIN                        GP08063 04880000
+         B     PRNT0099      COMPLAIN AND IGNORE                GP08063 04890000
+OPTS0020 CLI   0(R1),C' '    NON-BLANK?                         GP08063 04900000
+         BNE   OPTS0030      YES; START COMPARE                 GP08063 04910000
+         BXLE  R1,R2,OPTS0020  TRY AGAIN                        GP08063 04920000
+         B     PARM0010                                         GP08063 04930000
+OPTS0030 LM    R5,R7,TABOPTS   GET OPTION TABLE                 GP08063 04940000
+         SR    R15,R15       CLEAR FOR LENGTH IC                GP08063 04950000
+OPTS0040 IC    R15,0(,R5)    GET VERB LENGTH                    GP08063 04960000
+         EX    R15,EXPRTCLC  LOOK FOR MATCH                     GP08063 04970000
+         BE    OPTS0100      WOW                                GP08234 04980000
+         BXLE  R5,R6,OPTS0040  TRY AGAIN                        GP08063 04990000
+OPTS0050 LM    R5,R7,TABOPCS   GET OPTION TABLE                 GP09181 05000000
+         SR    R15,R15       CLEAR FOR LENGTH IC                GP09181 05010000
+OPTS0060 IC    R15,0(,R5)    GET VERB LENGTH                    GP09181 05020000
+         EX    R15,EXPRTCLC  LOOK FOR MATCH                     GP09181 05030000
+         BE    OPTS0120      WOW                                GP09181 05040000
+         BXLE  R5,R6,OPTS0060  TRY AGAIN                        GP09181 05050000
+OPTS0099 MVC   PRTDATA(EMSG33L),EMSG33  INVALID OPTION          GP09181 05060000
+         MVI   PRTDATA+EMSG33L+1,C':'                           GP09181 05070000
+         MVC   PRTDATA+EMSG33L+3(8),0(R1)                       GP09181 05080000
+         BAL   R9,PRT0000                                       GP08063 05090000
+         B     PARM0010              IGNORE REMAINDER           GP08063 05100000
+OPTS0100 OC    COMMOPFG(2),1(R5)   SET FLAG FOR THIS OPTION     GP08063 05110000
+         AR    R1,R15        SKIP OVER MATCHED TEXT             GP08063 05120000
+         B     OPTS0010      GET NEXT SPACE AND OPERAND         GP08063 05130000
+OPTS0120 SR    R6,R6         CLEAR FOR IC                       GP09181 05140000
+         ICM   R6,3,1(R5)    LOAD TABLE DISPLACEMENT            GP09181 05150000
+         BM    OPTS0140      LOWER CASE TABLES                  GP09181 05160000
+         L     R7,TAB@OPCD(R6)    LOAD OPCODE TABLE ADDRESS     GP09181 05170000
+         LTR   R7,R7         RESOLVED?                          GP09181 05180000
+         BZ    OPTS0099      NO; FAIL                           GP09181 05190000
+         LA    R6,AOP-8      GET OPERATIONS ENTRY IN COMMON     GP09181 05200000
+         MVC   0(8,R6),3(R5)    REPEAT ENTRY                    GP09181 05210000
+         ST    R7,8(,R6)     SET NEW TABLE ADDRESS              GP09181 05220000
+         AR    R1,R15        SKIP OVER MATCHED TEXT             GP09181 05230000
+         B     OPTS0010      GET NEXT SPACE AND OPERAND         GP09181 05240000
+OPTS0140 XC    COMMPRT+X'81'(9),COMMPRT+X'81'  ENABLE L.C. A-I  GP09181 05250000
+         XC    COMMPRT+X'91'(9),COMMPRT+X'91'  ENABLE L.C. J-R  GP09181 05260000
+         XC    COMMPRT+X'A2'(8),COMMPRT+X'A2'  ENABLE L.C. S-Z  GP09181 05270000
+         MVC   COMMNPRT+X'81'(9),=9X'FF'       ENABLE L.C. A-I  GP09181 05280000
+         MVC   COMMNPRT+X'91'(9),=9X'FF'       ENABLE L.C. J-R  GP09181 05290000
+         MVC   COMMNPRT+X'A2'(8),=9X'FF'       ENABLE L.C. S-Z  GP09181 05300000
+         AR    R1,R15        SKIP OVER MATCHED TEXT             GP09181 05310000
+         B     OPTS0010      GET NEXT SPACE AND OPERAND         GP09181 05320000
+TABOPTS  DC    A(TABOPT1,TABOPT2-TABOPT1,TABOPTL)               GP08063 05330000
+TABOPT1  DC    AL1(06,$OFIXSWP,0),CL10'IXSWAP   '               GP08234 05340000
+TABOPT2  DC    AL1(05,$OFIXSWP,0),CL10'IXSWP     '              GP08234 05350000
+         DC    AL1(06,$OFIXSWP,0),CL10'SWAPIX    '              GP08234 05360000
+         DC    AL1(07,$OFNOBLK,0),CL10'FIXSECT   '              GP10074 05370000
+         DC    AL1(05,$OFROUND,0),CL10'ROUND     '              GP10069 05380000
+         DC    AL1(02,$OFBCOP,0),CL10'BC        '               GP10029 05390000
+         DC    AL1(03,$OFBCOP,0),CL10'BCR       '               GP10029 05400000
+         DC    AL1(04,$OFBCOP,0),CL10'BCOP      '               GP10029 05410000
+         DC    AL1(08,$OFBCOP,0),CL10'BCOPCODE  '               GP10029 05420000
+         DC    AL1(03,$OFPLSR,0),CL10'PLS       '  REGS AS @nn  GP10055 05430000
+         DC    AL1(03,$OFPLSR,0),CL10'RAT       '               GP10055 05440000
+         DC    AL1(04,$OFABSR,0),CL10'ABSR      '  REGS AS  nn  GP10029 05450000
+         DC    AL1(04,$OFABSR,0),CL10'AREG      '               GP10029 05460000
+TABOPTL  DC    AL1(06,$OFABSR,0),CL10'ABSREG    '               GP10029 05470000
+TABOPCS  DC    A(TABOPC1,TABOPC2-TABOPC1,TABOPCL)               GP09181 05480000
+TABOPC1  DC    AL1(04,0,0),CL10'S360     '                      GP09181 05490000
+TABOPC2  DC    AL1(05,0,0),CL10'S/360     '                     GP09181 05500000
+         DC    AL1(04,0,4),CL10'S370      '                     GP09181 05510000
+         DC    AL1(05,0,4),CL10'S/370     '                     GP09181 05520000
+         DC    AL1(04,0,8),CL10'S390      '                     GP09181 05530000
+         DC    AL1(05,0,8),CL10'S/390     '                     GP10015 05540000
+         DC    AL1(05,128,0),CL10'LOWER   '                     GP09181 05550000
+         DC    AL1(05,128,0),CL10'UPLOW   '                     GP09181 05560000
+TABOPCL  DC    AL1(05,0,8),CL10'S/390     '                     GP09181 05570000
+         WXTRN DISOP360,DISOP370,DISOP390                       GP09181 05580000
+TAB@OPCD DC    A(DISOP360,DISOP370,DISOP390)     360/370/390    GP09181 05590000
+         SPACE 1                                                        05600000
+* ------------------------------------------------------------------- * 05610000
+*                                                                     * 05620000
+*        OPCODE STATEMENT - LOAD EXTERNAL OPCODE DEFINITIONS          * 05630000
+*                                                                     * 05640000
+* ------------------------------------------------------------------- * 05650000
+OPCD000  ITRACE ID=OPCODES                                      GP10015 05660000
+         LA    R1,CTLTYPE+1                                     GP10015 05670000
+         LA    R2,1          INCREMENT                          GP10015 05680000
+         LA    R3,CTL70                                         GP10015 05690000
+OPCD0010 CLI   0(R1),C' '    LEADING BLANK YET?                 GP10015 05700000
+         BE    OPCD0020      YES; NOW GET NON-BLANK             GP10015 05710000
+         BXLE  R1,R2,OPCD0010  TRY AGAIN                        GP10015 05720000
+         B     PRNT0099      COMPLAIN AND IGNORE                GP10015 05730000
+OPCD0020 CLI   0(R1),C' '    NON-BLANK?                         GP10015 05740000
+         BNE   OPCD0030      YES; START COMPARE                 GP10015 05750000
+         BXLE  R1,R2,OPCD0020  TRY AGAIN                        GP10015 05760000
+         B     OPCD0099                                         GP10015 05770000
+OPCD0030 MVC   COMMDWRD,COMMBLKS   CLEAR MODULE NAME            GP10015 05780000
+         LR    R7,R1         REMEMBER THE START                 GP10015 05790000
+         LA    R14,COMMDWRD                                     GP10015 05800000
+         LA    R3,7(,R1)     SET FOR MAXIMUM LENGTH             GP10015 05810000
+OPCD0040 CLI   0(R1),C' '    TRAILING BLANK ?                   GP10015 05820000
+         BE    OPCD0050      YES; TRY TO LOAD IT                GP10015 05830000
+         MVC   0(1,R14),0(R1)    DO IT THE SLOW WAY             GP10015 05840000
+         AR    R14,R2        BUMP OUTPUT                        GP10015 05850000
+         BXLE  R1,R2,OPCD0040   BUMP INPUT                      GP10015 05860000
+OPCD0050 CLI   0(R1),C' '    TRAILING BLANK ?                   GP10015 05870000
+         BNE   OPCD0099      NO; MALFORMED NAME                 GP10015 05880000
+         LOAD  EPLOC=COMMDWRD,ERRET=OPCD0091                    GP10015 05890000
+         LA    R6,AOP-8      GET OPERATIONS ENTRY IN COMMON     GP10015 05900000
+         MVC   0(8,R6),COMMDWRD   REPEAT NAME                   GP10015 05910000
+         ST    R0,8(,R6)     SET NEW TABLE ADDRESS              GP10015 05920000
+         B     PARM0010      IGNORE REST OF CARD                GP10015 05930000
+OPCD0091 MVC   PRTDATA(EMSG34L),EMSG34  MISSING MODULE          GP10015 05940000
+         MVI   PRTDATA+EMSG34L+1,C':'                           GP10015 05950000
+         MVC   PRTDATA+EMSG34L+3(8),COMMDWRD                    GP10015 05960000
+         BAL   R9,PRT0000                                       GP10015 05970000
+         B     PARM0010              IGNORE REMAINDER           GP10015 05980000
+OPCD0099 MVC   PRTDATA(EMSG33L),EMSG33  INVALID OPTION          GP10015 05990000
+         MVI   PRTDATA+EMSG33L+1,C':'                           GP10015 06000000
+         MVC   PRTDATA+EMSG33L+3(9),0(R7)                       GP10015 06010000
+         BAL   R9,PRT0000                                       GP10015 06020000
+         B     PARM0010              IGNORE REMAINDER           GP10015 06030000
+         SPACE 1                                                        06040000
+* ------------------------------------------------------------------- * 06050000
+*                                                                     * 06060000
+*          PRINT STATEMENTS - DEFINE PRINTED OUTPUT                   * 06070000
+*                                                                     * 06080000
+*   DIR    DIRECTORY INFORMATION FOR MEMBER                           * 06090000
+*   ESD/CESD  LIST OF CESD CONTROL INFORMATION IN MEMBER              * 06100000
+*   RLD    LISTING OF RLD DATA IN MEMBER                              * 06110000
+*   HEX    LISTING OF CSECT CONTENTS IN HEX                           * 06120000
+*   SYM    LISTING OF MEMBER'S SYMBOL TABLE DATA (ASM/LINK W/TEST OPT)* 06130000
+*   DAT    LISTING OF MEMBER'S SYSADATA RECORDS (ASM W/ADATA OPTION)  * 06140000
+*   LBL    LIST OF DEFINED AND GENERATED LABELS                       * 06150000
+*   ASM    LIST GENERATED SOURCE                                      * 06160000
+*   XREF   LIST STATEMENT CROSS-REFERENCE                             * 06170000
+*   TRACE  LIST TRACE TABLE ON ABNORMAL END                           * 06180000
+*   DEBUG  PRINT DEBUGGING INFORMATION (INDEPENDENT OF DISDEBUG)      * 06190000
+*                                                                     * 06200000
+* ------------------------------------------------------------------- * 06210000
+PRNT0000 ITRACE ID=PRINT                                        GP99167 06220000
+         LA    R1,CTLTYPE+1                                     GP99134 06230000
+         LA    R2,1          INCREMENT                          GP99134 06240000
+         LA    R3,CTL70                                         GP99134 06250000
+PRNT0010 CLI   0(R1),C' '    LEADING BLANK YET?                 GP99134 06260000
+         BE    PRNT0020      YES; NOW GET NON-BLANK             GP99134 06270000
+         BXLE  R1,R2,PRNT0010  TRY AGAIN                        GP99134 06280000
+         B     PRNT0099      COMPLAIN AND IGNORE                GP99134 06290000
+PRNT0020 CLI   0(R1),C' '    NON-BLANK?                         GP99134 06300000
+         BNE   PRNT0030      YES; START COMPARE                 GP99134 06310000
+         BXLE  R1,R2,PRNT0020  TRY AGAIN                        GP99134 06320000
+         B     PARM0010                                         GP99134 06330000
+PRNT0030 LM    R5,R7,PRINTOPT  GET PRINT OPTIONS                GP99134 06340000
+         SR    R15,R15       CLEAR FOR LENGTH IC                GP99134 06350000
+PRNT0040 IC    R15,0(,R5)    GET VERB LENGTH                    GP99134 06360000
+         EX    R15,EXPRTCLC  LOOK FOR MATCH                     GP99134 06370000
+         BE    PRNT0100      WOW                                GP99134 06380000
+         BXLE  R5,R6,PRNT0040  TRY AGAIN                        GP99134 06390000
+PRNT0099 MVC   PRTDATA(EMSG33L),EMSG33  INVALID STATEMENT       GP09181 06400000
+         MVI   PRTDATA+EMSG33L+1,C':'                           GP09181 06410000
+         MVC   PRTDATA+EMSG33L+3(8),0(R1)                       GP09181 06420000
+         BAL   R9,PRT0000                                       GP99134 06430000
+         B     PARM0010              IGNORE REMAINDER           GP99134 06440000
+PRNT0100 OC    PRINTFG1(2),1(R5)   SET FLAG FOR THIS OPTION     GP99149 06450000
+         AR    R1,R15        SKIP OVER MATCHED TEXT             GP99134 06460000
+         B     PRNT0010      GET NEXT SPACE AND OPERAND         GP99134 06470000
+EXPRTCLC CLC   0(0,R1),3(R5)  MATCHING TEXT W/TRAILING BLANK    GP99134 06480000
+PRINTOPT DC    A(PRINTO1,PRINTO2-PRINTO1,PRINTOL)               GP99134 06490000
+PRINTO1  DC    AL1(09,$PFDIR,0),CL10'DIRECTORY '                GP99149 06500000
+PRINTO2  DC    AL1(03,$PFDIR,0),CL10'DIR       '                GP99149 06510000
+         DC    AL1(03,$PFESD,0),CL10'ESD       '                GP99149 06520000
+         DC    AL1(04,$PFESD,0),CL10'CESD      '                GP99149 06530000
+         DC    AL1(03,$PFRLD,0),CL10'RLD       '                GP99149 06540000
+         DC    AL1(04,$PFSYM,0),CL10'SYMT      '                GP99149 06550000
+         DC    AL1(03,$PFSYM,0),CL10'SYM       '                GP99149 06560000
+         DC    AL1(05,$PFDAT,0),CL10'ADATA     '                GP99149 06570000
+         DC    AL1(04,$PFDAT,0),CL10'DATA      '                GP99149 06580000
+         DC    AL1(03,$PFDAT,0),CL10'DAT       '                GP99149 06590000
+         DC    AL1(03,$PFLBL,0),CL10'LBL       '                GP99149 06600000
+         DC    AL1(05,$PFLBL,0),CL10'LABEL     '                GP99149 06610000
+         DC    AL1(03,0,$PFHEX),CL10'HEX       '                GP99149 06620000
+         DC    AL1(04,0,$PFHEX),CL10'TEXT      '                GP99149 06630000
+         DC    AL1(03,0,$PFASM),CL10'ASM       '                GP99149 06640000
+         DC    AL1(03,0,$PFXRF+$PFASM),CL10'XRF       '         GP99149 06650000
+         DC    AL1(04,0,$PFXRF+$PFASM),CL10'XREF      '         GP99149 06660000
+         DC    AL1(05,0,$PFBUG),CL10'DEBUG     '                GP99149 06670000
+         DC    AL1(03,0,$PFBUG),CL10'BUG       '                GP99149 06680000
+         DC    AL1(05,$PFTRC,0),CL10'TRACE     '                GP99149 06690000
+PRINTDEF DC    AL1(07,$PFDIR+$PFRLD,$PFASM+$PFXRF+$PFPUN),CL10'DEFAULT' 06700000
+         DC    AL1(04,254,254),CL10'MOST       '                GP99149 06710000
+         DC    AL1(03,255,255),CL10'ALL '                       GP99149 06720000
+PRINTOL  DC    AL1(03,$PFTRC,0),CL10'TRC       '                GP99149 06730000
+* ------------------------------------------------------------------- * 06740000
+*                                                                     * 06750000
+*          Set sequentially numbered labels flag                      * 06760000
+*                                                                     * 06770000
+* ------------------------------------------------------------------- * 06780000
+SEQ0000  DS    0H                                                       06790000
+         ITRACE ID=SEQLABEL                                             06800000
+         TM    COMMFLAG,$SEQLABL     ALREADY SET?                       06810000
+         BO    SEQ0010               YES                                06820000
+         OI    COMMFLAG,$SEQLABL     SET SEQUENTIALLY NUMBER LABEL FLAG 06830000
+         B     PARM0010                                                 06840000
+SEQ0010  DS    0H                                                       06850000
+         MVC   PRTDATA(WMSG02L),WMSG02                                  06860000
+         BAL   R9,PRT0000            PRINT MESSAGE                      06870000
+         B     PARM0010                                                 06880000
+* ------------------------------------------------------------------- * 06890000
+*                                                                     * 06900000
+*          Process USING statements                                   * 06910000
+*                                                                     * 06920000
+* ------------------------------------------------------------------- * 06930000
+USNG0000 DS    0H                                                       06940000
+         ITRACE ID=USING             USING STATEMENT FOUND              06950000
+         LA    R3,COMMUSNG           CURRENT BLOCK IS ANCHOR            06960000
+         USING USNGDSCT,R3           DEFINE BASE                        06970000
+USNG0010 DS    0H                                                       06980000
+         ICM   R1,15,USNGNEXT        NEXT BLOCK ON CHAIN                06990000
+         BZ    USNG0020              END OF CHAIN FOUND                 07000000
+         LR    R3,R1                 COPY ADDRESS                       07010000
+         B     USNG0010              KEEP FOLLOWING CHAIN               07020000
+USNG0020 DS    0H                                                       07030000
+         LA    R1,CTL30              REGISTER NAME'S ADDRESS            07040000
+         BAL   R9,REG0000            FIND REGISTER TABLE ENTRY          07050000
+* ------------------------------------------------------------------- * 07060000
+*       R3 POINTS TO LAST USING BLOCK OR ANCHOR                       * 07070000
+*       R4 POINTS TO REGISTER TABLE ENTRY                             * 07080000
+* ------------------------------------------------------------------- * 07090000
+         CLC   CTL40,COMMBLKS        STARTING DISPLACEMENT ALL BLANK?   07100000
+         BE    USNG0070              YES                                07110000
+         CLC   CTL50,COMMBLKS        ENDING DISPLACEMENT ALL BLANK?     07120000
+         BE    USNG0050              YES.. NOT VALID                    07130000
+         LA    R1,8                  MAXIMUM NUMBER OF DIGITS           07140000
+         LA    R2,CTL40              FIRST CHARACTER OF BEGIN DISP      07150000
+         BAL   R9,HEX0000            VERIFY/CONVERT BEGIN DISP          07160000
+         MVC   SAVEBEGN,DISPOUT      SAVE BEGINNING DISPLACEMENT        07170000
+         LA    R1,8                  MAXIMUM NUMBER OF DIGITS           07180000
+         LA    R2,CTL50              FIRST CHARACTER OF END DISP        07190000
+         BAL   R9,HEX0000            VERIFY/CONVERT END DISP            07200000
+         CLC   SAVEBEGN,DISPOUT      BEGIN LARGER THAN END?             07210000
+         BH    USNG0060              YES.. ERROR                        07220000
+USNG0030 LA    R0,USNGL                                         GP99140 07230000
+         BAL   R14,GETMAIN           ACQUIRE STORAGE FOR NEW USNG BLOCK 07240000
+         ITRACE ID=NEWUSNG,                                            +07250000
+               RDATA1=R1             .. TRACE NEW BLOCK'S ADDRESS       07260000
+         ST    R1,USNGNEXT           CHANGE TO PREVIOUS BLOCK           07270000
+         LR    R3,R1                 COPY BASE                          07280000
+         MVC   USNGEYE,CNTLUSNG      SET BLOCK IDENTIFIER               07290000
+*OBS*    XC    USNGNEXT,USNGNEXT     CLEAR FORWARD POINTER      GP99154 07300000
+*OBS*    MVI   USNGFLAG,0            SET ALL FLAGS OFF          GP99154 07310000
+         MVC   USNGDSNM,CTL10        SET DSECT'S NAME                   07320000
+         MVC   USNGLBNM,CTL20        SET LABEL WITHIN DSECT             07330000
+*OBS*    XC    USNGDSA,USNGDSA       CLEAR DSECT BLOCK'S ADDRESS        07340000
+*OBS*    XC    USNGLBA,USNGLBA       CLEAR LABEL BLOCK'S ADDRESS        07350000
+*OBS*    XC    USNGDISP,USNGDISP     CLEAR LABEL DISP INTO DSECT        07360000
+         MVC   USNGBASE,REGVALUE     SET BASE VALUE                     07370000
+         CLC   CTL40,COMMBLKS        STARTING DISPLACEMENT OMITTED?     07380000
+         BE    USNG0040              YES                                07390000
+         MVC   USNGBEGN,SAVEBEGN     SET BEGINNING DISPLACEMENT         07400000
+         MVC   USNGEND,DISPOUT       SET ENDING DISPLACEMENT            07410000
+         B     PARM0010              READ NEXT CONTROL STATEMENT        07420000
+USNG0040 DS    0H                                                       07430000
+         OI    USNGFLAG,$USNGND      NO DISPLACEMENTS                   07440000
+*OBS*    XC    USNGBEGN,USNGBEGN     CLEAR STARTING DISP        GP99154 07450000
+*OBS*    XC    USNGEND,USNGEND       CLEAR ENDING DISP          GP99154 07460000
+         B     PARM0010              READ NEXT CONTROL STATEMENT        07470000
+USNG0050 DS    0H                                                       07480000
+         MVC   PRTDATA(EMSG06L),EMSG06 SET MESSAGE                      07490000
+         OI    COMMFLAG,$ERROR+$ABORT                                   07500000
+         BAL   R9,PRT0000            PRINT MESSAGE                      07510000
+         B     PARM0010                                                 07520000
+USNG0060 DS    0H                                                       07530000
+         MVC   PRTDATA(EMSG07L),EMSG07 SET MESSAGE                      07540000
+         OI    COMMFLAG,$ERROR+$ABORT                                   07550000
+         BAL   R9,PRT0000            PRINT MESSAGE                      07560000
+         B     PARM0010                                                 07570000
+USNG0070 DS    0H                                                       07580000
+         CLC   CTL50,COMMBLKS        ENDING DISPLACEMENT BLANK?         07590000
+         BE    USNG0030              YES                                07600000
+         MVC   PRTDATA(EMSG10L),EMSG10                                  07610000
+         OI    COMMFLAG,$ERROR+$ABORT                                   07620000
+         BAL   R9,PRT0000            PRINT MESSAGE                      07630000
+         B     PARM0010                                                 07640000
+         SPACE 2                                                        07650000
+* ------------------------------------------------------------------- * 07660000
+*                                                                     * 07670000
+*    VERIFY offset hex,hex,hex                                        * 07680000
+*    verify offs 'text'                                               * 07690000
+*                                                                     * 07700000
+*    REPLACE offset hex,'text'                                        * 07710000
+*                                                                     * 07720000
+*    VERIFY AND REPLACE differ only by the queue they place the       * 07730000
+*    request on. Parsing and messages otherwise the same.             * 07740000
+*                                                                     * 07750000
+* ------------------------------------------------------------------- * 07760000
+VERF0000 LA    R8,COMMVERS           POINT TO VERIFY QUEUE      GP10085 07770000
+         B     VERP0000              GO TO COMMON               GP10085 07780000
+REPL0000 LA    R8,COMMREPS           POINT TO REPLACE QUEUE     GP10085 07790000
+         PUSH  USING                                            GP10085 07800000
+*    VER XXX YY - DEFINE VERIFY TEXT; 1-6 DIGIT OFFSET; TEXT IS         07810000
+*    REP XXX YY - DEFINE REPLACE TEXT;  COMMA SEPARATED HEXADECIMAL     07820000
+*                       OR QUOTED CHARACTER STRING. OPT. COMMENTS FIELD 07830000
+*                                                               GP10085 07840000
+VERP0000 MVI   SUBCODE,0               BASIC FORMAT ERROR       GP10085 07850000
+         LA    R5,CTLSTMT+4          START PARSE FOR OFFSET     GP10085 07860000
+         LA    R6,CTLSTMT+71         LAST VALID COLUMN          GP10085 07870000
+*--------------------------------------------------------------------*  07880000
+*   PARSE OFFSET - FAIL IF MISSING OR BAD                            *  07890000
+*--------------------------------------------------------------------*  07900000
+         BAL   R14,NEXTBLNK  SKIP BLANKS                        GP10085 07910000
+           B   SETVRSYN      NO; BOO                            GP10085 07920000
+         BAL   R14,NEXTTEXT  ANY OFFSET ?                       GP10085 07930000
+           B   SETVRSYN      NO; BOO                            GP10085 07940000
+         BAL   R14,FINDWORD  GET THE OFFSET                     GP10085 07950000
+           B   SETVRSYN                                         GP10085 07960000
+         MVI   SUBCODE,1      OPERAND ERROR                     GP10085 07970000
+         XC    WORKAREA,WORKAREA                                GP10085 07980000
+         BAL   R9,HEX0000    CONVERT TO HEX                     GP10085 07990000
+         MVC   WORKOFFS,DISPOUT  SAVE RESULT                    GP10085 08000000
+         CLI   DISPOUT,0     THREE BYTES ?                      GP10085 08010000
+         BH    SETVRSYN      NO; TOO BAD                        GP10085 08020000
+*--------------------------------------------------------------------*  08030000
+*   NEED AT LEAST ONE HEX/TEXT ITEM AFTER OFFSET                     *  08040000
+*--------------------------------------------------------------------*  08050000
+         MVI   SUBCODE,2     PARSE ERROR                        GP10085 08060000
+         BAL   R14,NEXTBLNK  SKIP BLANKS                        GP10085 08070000
+           B   SETVRSYN      NO; BOO                            GP10085 08080000
+         BAL   R14,NEXTTEXT  GET NEXT ITEM                      GP10085 08090000
+           B   SETVRSYN      NONE - BOO                         GP10085 08100000
+         B     VERPTSTR      PROCESS FIRST OPERAND              GP10085 08110000
+         SPACE 1                                                GP10085 08120000
+*--------------------------------------------------------------------*  08130000
+*   LOOP THROUGH INPUT UNTIL BLANK FIELD FOUND                       *  08140000
+*--------------------------------------------------------------------*  08150000
+VERPLOOP BAL   R14,NEXTTEXT  GET NEXT ITEM                      GP10085 08160000
+           B   SETVDONE      NONE - ALL DONE                    GP10085 08170000
+         CLI   0(R5),C','    COMMA?                             GP10085 08180000
+         BNE   VERPTSTR      NO; CHECK FOR QUOTES               GP10085 08190000
+         LA    R5,1(,R5)     SKIP COMMA                         GP10085 08200000
+         B     VERPLOOP        AND TRY AGAIN                    GP10085 08210000
+         SPACE 1                                                        08220000
+VERPTSTR CLI   0(R5),C''''   QUOTED STRING ?                    GP10085 08230000
+         BE    SETVRSTR      YES; PROCESS DIFFERENTLY           GP10085 08240000
+         CLI   0(R5),C'"'    QUOTED STRING ?                    GP10085 08250000
+         BE    SETVRSTR      YES; PROCESS DIFFERENTLY           GP10085 08260000
+*--------------------------------------------------------------------*  08270000
+*   PROCESS HEX TEXT (ERROR OTHERWISE)                               *  08280000
+*--------------------------------------------------------------------*  08290000
+         BAL   R14,FINDWORD  GET NEXT FIELD                     GP10085 08300000
+           B   SETVRSYN      ERROR                              GP10085 08310000
+         MVI   SUBCODE,3      HEX  ERROR                        GP10085 08320000
+         LA    R4,1(,R1)     COPY LENGTH; SET FOR ROUNDING      GP10085 08330000
+         SRL   R4,1          NUMBER OF HEX BYTES RESULTING      GP10085 08340000
+         BAL   R9,HEX0000    CONVERT TO HEX                     GP10085 08350000
+         L     R3,WORKSIZE   GET CURRENT TEXT SIZE              GP10085 08360000
+         LA    R15,WORKTEXT(R3)  GET DESTINATION                GP10085 08370000
+         AR    R3,R4         NEW TEXT LENGTH                    GP10085 08380000
+         ST    R3,WORKSIZE   STASH IT BACK                      GP10085 08390000
+         LA    R14,DISPOUT+4   START OF MOVE                    GP10085 08400000
+         SR    R14,R4        START OF MOVE                      GP10085 08410000
+         EX    R4,EXMVCHEX   MOVE CONVERTED HEX                 GP10085 08420000
+         B     VERPLOOP      TRY AGAIN                          GP10085 08430000
+EXMVCHEX MVC   0(0,R15),0(R14)   MOVE RESULT BYTE(S)            GP10085 08440000
+         SPACE 1                                                GP10085 08450000
+*--------------------------------------------------------------------*  08460000
+*   PROCESS A QUOTED STRING, WITH EITHER ' OR " DELIMITER            *  08470000
+*--------------------------------------------------------------------*  08480000
+SETVRSTR LR    R4,R5         REMEMBER THE QUOTE LOCATION        GP10085 08490000
+         L     R3,WORKSIZE   GET CURRENT TEXT SIZE              GP10085 08500000
+         LA    R15,WORKTEXT(R3)  GET DESTINATION                GP10085 08510000
+         MVI   SUBCODE,4      TEXT ERROR                        GP10085 08520000
+SETVRTUP LA    R5,1(,R5)     SKIP THE LEADING QUOTE             GP10085 08530000
+         CR    R5,R6         REACHED END OF STRING?             GP10085 08540000
+         BH    SETVRSYN      YES; VIOLATION                     GP10085 08550000
+         CLC   0(1,R5),0(R4)  IS IT A MATCHING QUOTE?           GP10085 08560000
+         BNE   SETVRTMV      NO; MOVE ONE                       GP10085 08570000
+         CLC   1(1,R5),0(R4) PAIRED QUOTE?                      GP10085 08580000
+         BNE   SETVRTND      NO; END (MUST HAVE BLANK)          GP10085 08590000
+         LA    R5,1(,R5)     SKIP FIRST QUOTE OF PAIR           GP10085 08600000
+SETVRTMV MVC   0(1,R15),0(R5)  MOVE CHARACTER                   GP10085 08610000
+         LA    R15,1(,R15)   MOVE OUT POINTER                   GP10085 08620000
+         LA    R3,1(,R3)     UP OUT LENGTH                      GP10085 08630000
+         B     SETVRTUP      INCREASE INPUT POINTER             GP10085 08640000
+SETVRTND ST    R3,WORKSIZE   STASH NEW SIZE                     GP10085 08650000
+         CR    R5,R6         END ?                              GP10085 08660000
+         BNL   SETVDONE      PLAYING IT CLOSE TO THE VEST       GP10085 08670000
+         LA    R5,1(,R5)     SKIP TRAILING QUOTE                GP10085 08680000
+         CLI   0(R5),C' '    MUST HAVE QUOTE/SPACE ENDING       GP10085 08690000
+         BNE   VERPLOOP      LOOK FOR IT                        GP10085 08700000
+         SPACE 1                                                GP10085 08710000
+*--------------------------------------------------------------------*  08720000
+*   SCAN COMPLETE WITHOUT ERRORS; BUILD VER/REP BLOCK AND CHAIN      *  08730000
+*--------------------------------------------------------------------*  08740000
+SETVDONE MVI   SUBCODE,0      TEXT ERROR                        GP10085 08750000
+         ICM   R2,15,WORKSIZE    CHECK TEXT LENGTH              GP10085 08760000
+         BNP   SETVRSYN      HUH?                               GP10085 08770000
+         BCTR  R2,0          MAKE EXECUTE LENGTH                GP10085 08780000
+         ST    R2,WORKSIZE   SAVE TEXT LENGTH - 1               GP10085 08790000
+         LA    R0,VERPL      GET BLOCK LENGTH                   GP10085 08800000
+         BAL   R14,GETMAIN   AND GET A BLOCK                    GP10085 08810000
+         MVC   0(VERPL,R1),WORKAREA  MOVE FROM WORK SPACE       GP10085 08820000
+         USING VERPSECT,R2                                      GP10085 08830000
+         LR    R2,R8         ROOT OF CHAIN                      GP10085 08840000
+SETVFEND ICM   R3,15,VERPNEXT     LAST ENTRY YET ?              GP10085 08850000
+         BZ    SETVSTOR      YES                                GP10085 08860000
+         LR    R2,R3                                            GP10085 08870000
+         B     SETVFEND      TRY AGAIN                          GP10085 08880000
+SETVSTOR ST    R1,VERPNEXT   CHAIN ON END                       GP10085 08890000
+         B     PARM0010      DONE WITH THIS CARD                GP10085 08900000
+         SPACE 1                                                GP10085 08910000
+SETVRSYN MVC   PRTDATA(EMSG36L),EMSG36   MOVE ERROR MESSAGE     GP10085 08920000
+         CLI   SUBCODE,SUB36M#    VALID CODE ?                  GP10085 08930000
+         BNL   SETVRSYP                                         GP10085 08940000
+         SR    R1,R1                                            GP10085 08950000
+         IC    R1,SUBCODE         GET CODE                      GP10085 08960000
+         SLL   R1,4               * LEN                         GP10085 08970000
+         LA    R1,SUB36M1(R1)     POINT TO MESSAGE              GP10085 08980000
+         MVI   PRTDATA+EMSG36L+1,C'-'                           GP10085 08990000
+         MVC   PRTDATA+EMSG36L+3(L'SUB36M1),0(R1)               GP10085 09000000
+SETVRSYP OI    COMMFLAG,$ERROR+$ABORT                           GP10085 09010000
+         BAL   R9,PRT0000            PRINT MESSAGE              GP10085 09020000
+         B     PARM0010                                         GP10085 09030000
+         SPACE 1                                                        09040000
+NEXTTEXT CLI   0(R5),C' '    SPACER?                            GP10085 09050000
+         BNE   4(,R14)       NO; RETURN TO CALLER               GP10085 09060000
+         LA    R5,1(,R5)                                        GP10085 09070000
+         CR    R5,R6         AT END ?                           GP10085 09080000
+         BNH   NEXTTEXT                                         GP10085 09090000
+         BR    R14           ELSE NO MATCH                      GP10085 09100000
+         SPACE 1                                                GP10085 09110000
+NEXTBLNK CLI   0(R5),C' '    SPACER?                            GP10085 09120000
+         BE    4(,R14)                                          GP10085 09130000
+         CLI   0(R5),C','    SEPARATOR?                         GP10085 09140000
+         BE    4(,R14)                                          GP10085 09150000
+         LA    R5,1(,R5)                                        GP10085 09160000
+         CR    R5,R6         AT END ?                           GP10085 09170000
+         BNH   NEXTBLNK                                         GP10085 09180000
+         BR    R14           ELSE NO MATCH                      GP10085 09190000
+         SPACE 1                                                GP10085 09200000
+FINDWORD LR    R2,R5         REMEMBER START OF TEXT             GP10085 09210000
+         LR    R0,R14        REMEMBER THE RETURN ADDRESS        GP10085 09220000
+         BAL   R14,NEXTBLNK  GET FIRST BLANK AFTER              GP10085 09230000
+         LR    R14,R0        RESTORE THE RETURN ADDRESS         GP10085 09240000
+         LR    R1,R5         GET NEW END                        GP10085 09250000
+         SR    R1,R2         GET LENGTH                         GP10085 09260000
+         BNPR  R14           INVALID                            GP10085 09270000
+         CH    R1,=H'8'      NOT TOO LONG?                      GP10085 09280000
+         BHR   R14           TOO LONG; SO LONG                  GP10085 09290000
+         B     4(,R14)       RETURN WITH CC SET                 GP10085 09300000
+         POP   USING                                            GP10085 09310000
+         SPACE 1                                                GP10085 09320000
+         DS    0A            ALIGN                              GP10085 09330000
+WORKAREA DC    0XL76'0',A(0) COPY OF VERPSECT BLOCK             GP10085 09340000
+WORKOFFS DC    A(0)          OFFSET                             GP10085 09350000
+WORKSIZE DC    A(0)          LENGTH                             GP10085 09360000
+WORKTEXT DC    XL64'0'       VER/REP TEXT                       GP10085 09370000
+         SPACE 2                                                        09380000
+* ------------------------------------------------------------------- * 09390000
+*                                                                     * 09400000
+*        Locate register table entry                                  * 09410000
+*                                                                     * 09420000
+*          R1  is register name's address                             * 09430000
+*          R9  is return address                                      * 09440000
+*                                                                     * 09450000
+*          At exit R4 will point to the register table entry.         * 09460000
+*                                                                     * 09470000
+*          If any error is found, control is passed to 'PARM0010'.    * 09480000
+*                                                                     * 09490000
+* ------------------------------------------------------------------- * 09500000
+REG0000  DS    0H                                                       09510000
+         ITRACE ID=CONVREG                                              09520000
+         CLI   0(R1),C' '            BLANK?                             09530000
+         BE    REG0050               YES.. INVALID                      09540000
+         CLC   3(7,R1),COMMBLKS      REFERENCE TOO LONG?                09550000
+         BNE   REG0060               YES.. INVALID                      09560000
+         CLI   0(R1),C'@'    'AT' REGISTER NAME?                GP13236 09570000
+         BE    REG0005         YES; SKIP OVER IT                GP13236 09580000
+         CLI   0(R1),C'R'    OR IS IT NORMAL MNEMONIC ?         GP13236 09590000
+         BNE   REG0006                                          GP13236 09600000
+REG0005  LA    R1,1(,R1)     SKIP PREFIX                                09610000
+REG0006  CLI   2(R1),C' '    3-CHARACTERS LEFT ?                GP13236 09620000
+         BNE   REG0060         YES; FAIL IT                     GP13236 09630000
+         CLI   1(R1),C' '            2-CHARACTER NAME?                  09640000
+         BNE   REG0020               YES                                09650000
+REG0010  ITRACE ID=REG1                                                 09660000
+         LA    R4,REGTBL1            1-CHARACTER NAME TABLE             09670000
+         SR    R2,R2                 SET LENGTH (1 BYTE)                09680000
+         B     REG0030               FIND TABLE ENTRY                   09690000
+*EG0010  DS    0H                                                       09700000
+*OLD*    ITRACE ID=REG3                                                 09710000
+*OLD*    LA    R4,REGTBL3            3-CHARACTER NAME TABLE             09720000
+*OLD*    LA    R2,2                  SET LENGTH (3 BYTES)               09730000
+*OLD*    B     REG0030               FIND TABLE ENTRY                   09740000
+REG0020  DS    0H                                                       09750000
+         CLI   0(R1),C'0'    LEADING ZERO ?                     GP13236 09760000
+         BNE   REG0025         NO                                       09770000
+         LA    R1,1(,R1)     SKIP LEADING ZERO                  GP13236 09780000
+         B     REG0010       AND PROCESS AS SINGLE CHARACTER    GP13236 09790000
+REG0025  ITRACE ID=REG2                                                 09800000
+         LA    R4,REGTBL2            2-CHARACTER NAME TABLE             09810000
+         LA    R2,1                  SET LENGTH (2 BYTES)               09820000
+REG0030  DS    0H                                                       09830000
+         CLI   0(R4),X'FF'           END OF TABLE?                      09840000
+         BE    REG0040               YES.. INVALID                      09850000
+         EX    R2,REGCLC             REGISTER NAME MATCH?               09860000
+         BER   R9                    YES                                09870000
+         LA    R4,REGL(,R4)          NEXT REGISTER ENTRY                09880000
+         B     REG0030               LOOP                               09890000
+REG0040  DS    0H                                                       09900000
+         ITRACE ID=BADREG                                               09910000
+         MVC   PRTDATA(EMSG05L),EMSG05 SET MESSAGE                      09920000
+         OI    COMMFLAG,$ERROR+$ABORT                                   09930000
+         BAL   R9,PRT0000            PRINT MESSAGE                      09940000
+         B     PARM0010                                                 09950000
+REG0050  DS    0H                                                       09960000
+         ITRACE ID=REGBLANK                                             09970000
+         MVC   PRTDATA(EMSG13L),EMSG13 SET MESSAGE                      09980000
+         OI    COMMFLAG,$ERROR+$ABORT                                   09990000
+         BAL   R9,PRT0000            PRINT MESSAGE                      10000000
+         B     PARM0010                                                 10010000
+REG0060  DS    0H                                                       10020000
+         ITRACE ID=REGLONG                                              10030000
+         MVC   PRTDATA(EMSG14L),EMSG14 SET MESSAGE                      10040000
+         OI    COMMFLAG,$ERROR+$ABORT                                   10050000
+         BAL   R9,PRT0000            PRINT MESSAGE                      10060000
+         B     PARM0010                                                 10070000
+REGCLC   CLC   REGNAME(0),0(R1)      TEST REGISTER NAME                 10080000
+         SPACE 1                                                GP99172 10090000
+* ------------------------------------------------------------------- * 10100000
+*                                                                     * 10110000
+*          Convert character to integer                               * 10120000
+*                                                                     * 10130000
+*          R1 should be the number of characters (up to 9)            * 10140000
+*          R2 should be the address of the first character            * 10150000
+*          R9 should be the return address                            * 10160000
+*                                                                     * 10170000
+*             At exit R0 will have the 32-bit value                   * 10180000
+*                                                                     * 10190000
+*          If any error is found, control is passed to 'PARM0010'.    * 10200000
+*                                                                     * 10210000
+* ------------------------------------------------------------------- * 10220000
+INTG000  LR    R14,R2        SAVE START IN SAFE REGISTER        GP99172 10230000
+         EX    R1,EXINTTRT   LOOK FOR HEX                       GP99172 10240000
+         BZ    HEX0050       MORE THAN USER WANTED - TOO LONG   GP99172 10250000
+         CLI   0(R2),C'0'    LEADING ZERO?                      GP99172 10260000
+         BE    HEX0000       YES; TREAT AS HEX                  GP99172 10270000
+         CLM   R2,1,COMMBLKS  BLANK STOPPER?                    GP99172 10280000
+         BNE   HEX0040       NO                                 GP99172 10290000
+         LR    R15,R1        COPY STOPPER                       GP99172 10300000
+         SR    R15,R14       LESS START                         GP99172 10310000
+         BNP   HEX0050       INVALID                            GP99172 10320000
+         LR    R2,R1         ADVANCE PARSE POINTER              GP99172 10330000
+         BCTR  R15,0         EXEC LENGTH                        GP99172 10340000
+         EX    R15,EXINTPAK  PACK                               GP99172 10350000
+         CVB   R0,COMMDWRD                                      GP99172 10360000
+         BR    R9                    GET OUTTA HERE             GP99172 10370000
+EXINTTRT TRT   0(0,R2),INTTRT  VERIFY INTEGER                   GP99172 10380000
+EXINTPAK PACK  COMMDWRD,0(0,R14) PACK INCOMING                  GP99172 10390000
+         SPACE 1                                                GP99172 10400000
+* ------------------------------------------------------------------- * 10410000
+*                                                                     * 10420000
+*          Convert character to hex                                   * 10430000
+*                                                                     * 10440000
+*          R1 should be the number of characters (up to 8)            * 10450000
+*          R2 should be the address of the first character            * 10460000
+*          R9 should be the return address                            * 10470000
+*                                                                     * 10480000
+*             At exit 'DISPOUT' will be the value in hex              * 10490000
+*                                                                     * 10500000
+*          If any error is found, control is passed to 'PARM0010'.    * 10510000
+*                                                                     * 10520000
+* ------------------------------------------------------------------- * 10530000
+HEX0000  XC    DISPIN,DISPIN  CLEAR WORK                        GP99172 10540000
+         LR    R14,R2        SAVE START IN SAFE REGISTER        GP99172 10550000
+         EX    R1,EXHEXTRT   LOOK FOR HEX                       GP99172 10560000
+         BZ    HEX0050       MORE THAN USER WANTED - TOO LONG   GP99172 10570000
+         CLI   0(R1),C','    COMMA SEPARATOR?                   GP10085 10580000
+         BE    HEX0010       YES                                GP10085 10590000
+         CLM   R2,1,COMMBLKS  BLANK STOPPER?                    GP99172 10600000
+         BNE   HEX0040       NO                                 GP99172 10610000
+HEX0010  LR    R15,R1        COPY STOPPER                       GP99172 10620000
+         SR    R15,R14       LESS START                         GP99172 10630000
+         BNP   HEX0050       INVALID                            GP99172 10640000
+         BCTR  R15,0         EXEC LENGTH                        GP99172 10650000
+         LA    R1,DISPIN+L'DISPIN-1                             GP99172 10660000
+         SR    R1,R15       START MOVE                          GP99172 10670000
+         EX    R15,EXHEXMVC  MOVE TO WORK AREA                  GP99172 10680000
+         LR    R2,R1         ADVANCE PARSE POINTER              GP99172 10690000
+         NC    DISPIN,COMM1F1F  STRIP ZONES                     GP99172 10700000
+         TR    DISPIN,COMMCHHX  MAKE HEX BYTES                  GP99172 10710000
+         PACK  DISPOUT(5),DISPIN(9)  PACK                               10720000
+         BR    R9                    GET OUTTA HERE                     10730000
+EXHEXTRT TRT   0(0,R2),HEXTRT  VERIFY HEX DIGITS                GP99172 10740000
+EXHEXMVC MVC   0(0,R1),0(R14) MOVE HEX TEXT                     GP99172 10750000
+         SPACE 1                                                GP99172 10760000
+HEX0040  MVC   PRTDATA(EMSG08L),EMSG08                          GP99172 10770000
+         OI    COMMFLAG,$ERROR+$ABORT                                   10780000
+         BAL   R9,PRT0000            PRINT MESSAGE                      10790000
+         B     PARM0010                                                 10800000
+         SPACE 1                                                GP99172 10810000
+HEX0050  MVC   PRTDATA(EMSG09L),EMSG09                          GP99172 10820000
+         OI    COMMFLAG,$ERROR+$ABORT                                   10830000
+         BAL   R9,PRT0000            PRINT MESSAGE                      10840000
+         B     PARM0010                                                 10850000
+         SPACE 1                                                GP99172 10860000
+PRT0000  BAL   R14,PRINTREC                                     GP99138 10870000
+         BR    R9                    RETURN                             10880000
+EXIT0000 DS    0H                                                       10890000
+         ITRACE ID=PARMEOF           END OF FILE                        10900000
+         TM    PGMFLAG,$ASMOPEN      ASSEMBLER INPUT OPEN?              10910000
+         BNO   EXIT0010              NO                                 10920000
+         ITRACE ID=CLOSEASM          CLOSING SYSIN DCB                  10930000
+         NI    PGMFLAG,255-$ASMOPEN  INDICATE DCB IS CLOSED             10940000
+         CLOSE SYSIN                                                    10950000
+EXIT0010 TM    COMMDD,$ADADD+$LISTDD  ADATA/LIST PROCESS?       GP99167 10960000
+         BNZ   EXIT0030      SET PRINT DEFAULTS?                GP99167 10970000
+         OC    COMMBASE,COMMBASE     BASE REGISTER(S) DEFINED?          10980000
+         BZ    EXIT0020              NO                                 10990000
+         CLC   COMMPFX,COMMBLKS      PREFIX DEFINED?                    11000000
+         BNE   EXIT0030              YES                                11010000
+         OI    COMMFLAG,$ERROR+$ABORT                                   11020000
+         MVC   PRTDATA(EMSG20L),EMSG20                                  11030000
+         BAL   R9,PRT0000            PRINT MESSAGE                      11040000
+         B     EXIT0030              EXIT                               11050000
+EXIT0020 DS    0H                                                       11060000
+         CLC   COMMPFX,COMMBLKS      PREFIX DEFINED?                    11070000
+         BE    EXIT0030              NO                                 11080000
+         OI    COMMFLAG,$ERROR+$ABORT                                   11090000
+         MVC   PRTDATA(EMSG21L),EMSG21                                  11100000
+         BAL   R9,PRT0000            PRINT MESSAGE                      11110000
+EXIT0030 OC    PRINTFG1(2),PRINTFG1  USER SPECIFY ANY PRINT OPTIONS?    11120000
+         BNZ   EXIT0040                                         GP99167 11130000
+*  BY DEFAULT, DO NOT PRINT CESD OR CSECT TEXT (FOR NUCLEUS, ETC.)      11140000
+         MVC   PRINTFG1(2),PRINTDEF+1   SET DEFAULTS            GP99149 11150000
+EXIT0040 TM    COMMFLAG,$ERROR+$ABORT  ALREADY HAVE A MESSAGE?  GP99167 11160000
+         BNZ   EXIT0050                                         GP99167 11170000
+         TM    PGMFLAG,$PFHAVE  HAD INPUT ?                     GP99167 11180000
+         BNZ   EXIT0050                                         GP99167 11190000
+         LA    R1,WMSG01                                        GP99167 11200000
+         BAL   R14,PRINTMSG  WRITE A WARNING                    GP99167 11210000
+EXIT0050 DS    0H                                               GP99167 11220000
+         ITRACE ID=EXIT                                                 11230000
+         L     R13,4(,R13)           RESTORE REGISTER 13                11240000
+         LM    R14,R12,12(R13)       RESTORE ALL OTHER REGISTERS        11250000
+         SR    R15,R15               GIVE GOOD RETURN CODE              11260000
+         BR    R14                   RETURN TO CALLER                   11270000
+         SPACE 1                                                        11280000
+         LTORG ,                                                GP10085 11290000
+*---------------------------------------------------------------------* 11300000
+*                                                                     * 11310000
+*              WORK AREAS                                             * 11320000
+*                                                                     * 11330000
+*---------------------------------------------------------------------* 11340000
+SAVEBEGN DC    A(0)                  SAVED BEGINNING DISPLACEMENT       11350000
+SAVEEND  DC    A(0)                  SAVED ENDING DISPLACEMENT  GP99172 11360000
+H4096    DC    H'4096'               4K IN DECIMAL                      11370000
+PMIN     DC    PL3'&MINL'            MINIMUM LINE COUNT ALLOWED         11380000
+PGMFLAG  DC    X'00'                                                    11390000
+$SUBH    EQU   X'80'                 SUBHEADING PRINTED                 11400000
+$ASMOPEN EQU   X'40'                 ASSEMBLER INPUT DCB OPEN           11410000
+$AFLUSH  EQU   X'20'                 END CARD FOUND; FLUSH REST GP99139 11420000
+$PFHAVE  EQU   X'02'         HAD SOME INPUT                     GP99167 11430000
+         SPACE 1                                                        11440000
+DISPIN   DC    CL8' '                                                   11450000
+         DC    X'00'                 PAD FOR PACKING                    11460000
+DISPOUT  DC    XL4'00000000'                                            11470000
+         DC    X'00'                 PAD FOR PACKING                    11480000
+         SPACE 1                                                        11490000
+         DC    C'0'                                                     11500000
+LINEIN   DC    CL3'000'                                                 11510000
+LINEOUT  DC    PL3'0'                                                   11520000
+         SPACE 1                                                        11530000
+SUBHEAD  DC    C' CONTROL STATEMENTS '                                  11540000
+SUBHEADL EQU   *-SUBHEAD                                                11550000
+*---------------------------------------------------------------------* 11560000
+*              WARNING MESSAGES                                       * 11570000
+*---------------------------------------------------------------------* 11580000
+WMSG01   DC    AL1(L'WMSG01T)                                   GP99167 11590000
+WMSG01T  DC    C'DISASM0201W NO OPTIONS CARDS PROCESSED'        GP99167 11600000
+WMSG02   DC    C'DISASM0202W SEQUENTIALLY NUMBERED LABELS HAVE ALREADY +11610000
+               BEEN REQUESTED'                                          11620000
+WMSG02L  EQU   *-WMSG02                                                 11630000
+*---------------------------------------------------------------------* 11640000
+*              ERROR MESSAGES                                         * 11650000
+*---------------------------------------------------------------------* 11660000
+EMSG03   DC    C'DISASM0203E INVALID CONTROL STATEMENT'         GP99167 11670000
+EMSG03L  EQU   *-EMSG03                                         GP99167 11680000
+EMSG04   DC    C'DISASM0204E EXTRANEOUS DATA IN REGISTER PARAMETER'     11690000
+EMSG04L  EQU   *-EMSG04                                                 11700000
+EMSG05   DC    C'DISASM0205E INVALID REGISTER REFERENCE'                11710000
+EMSG05L  EQU   *-EMSG05                                                 11720000
+EMSG06   DC    C'DISASM0206E END DISPLACEMENT IS REQUIRED WHEN BEGIN DI+11730000
+               SPLACEMENT IS GIVEN'                                     11740000
+EMSG06L  EQU   *-EMSG06                                                 11750000
+EMSG07   DC    C'DISASM0207E BEGIN DISPLACEMENT IS LARGER THAN END DISP+11760000
+               LACEMENT'                                                11770000
+EMSG07L  EQU   *-EMSG07                                                 11780000
+EMSG08   DC    C'DISASM0208E INVALID DIGIT'                     GP99172 11790000
+EMSG08L  EQU   *-EMSG08                                                 11800000
+EMSG09   DC    C'DISASM0209E INVALID NUMBER OF DIGITS'          GP99172 11810000
+EMSG09L  EQU   *-EMSG09                                                 11820000
+EMSG10   DC    C'DISASM0210E END DISPLACEMENT NOT ALLOWED UNLESS START +11830000
+               DISPLACEMENT IS SPECIFIED'                               11840000
+EMSG10L  EQU   *-EMSG10                                                 11850000
+EMSG11   DC    C'DISASM0211E PREFIX MAY NOT BE BLANK'           GP99134 11860000
+EMSG11L  EQU   *-EMSG11                                                 11870000
+EMSG12   DC    C'DISASM0212E PREFIXES MUST BE 4 CHARACTERS OR LESS'     11880000
+EMSG12L  EQU   *-EMSG12                                                 11890000
+EMSG13   DC    C'DISASM0213E BASE REGISTER IS BLANK'                    11900000
+EMSG13L  EQU   *-EMSG13                                                 11910000
+EMSG14   DC    C'DISASM0214E BASE REGISTER NAME EXCEEDS 3 CHARACTERS IN+11920000
+                LENGTH'                                                 11930000
+EMSG14L  EQU   *-EMSG14                                                 11940000
+EMSG15   DC    C'DISASM0215E ''DATA'' IS RESERVED FOR DATA AREA PREFIXE+11950000
+               S, CHOOSE ANOTHER PREFIX'                                11960000
+EMSG15L  EQU   *-EMSG15                                                 11970000
+EMSG16   DC    C'DISASM0216E INVALID DIGIT IN LINE/LINES/MAXLINES STATE+11980000
+               MENT'                                                    11990000
+EMSG16L  EQU   *-EMSG16                                                 12000000
+EMSG17   DC    C'DISASM0217E LINE COUNT VALUE IN LINE/LINES/MAXLINES ST+12010000
+               ATEMENT IS TOO LONG OR CONTAINS EXTRANEOUS DATA'         12020000
+EMSG17L  EQU   *-EMSG17                                                 12030000
+EMSG18   DC    C'DISASM0218E LINE COUNT VALUE IN LINE/LINES/MAXLINES ST+12040000
+               ATEMENT IS BELOW MINIMUM ALLOWED'                        12050000
+EMSG18L  EQU   *-EMSG18                                                 12060000
+EMSG19   DC    C'DISASM0219E PREFIX HAS ALREADY BEEN DEFINED, CHOOSE ON+12070000
+               E OR THE OTHER'                                  GP99139 12080000
+EMSG19L  EQU   *-EMSG19                                                 12090000
+EMSG20   DC    C'DISASM0220E PREFIX MUST BE DEFINED WHEN BASE REGISTERS+12100000
+                ARE DEFINED'                                    GP99139 12110000
+EMSG20L  EQU   *-EMSG20                                                 12120000
+EMSG21   DC    C'DISASM0221E PREFIX NOT VALID UNLESS BASE REGISTER(S) A+12130000
+               RE DEFINED'                                      GP99139 12140000
+EMSG21L  EQU   *-EMSG21                                                 12150000
+EMSG22   DC    C'DISASM0222E THIS AREA OVERLAPS AREA AT '               12160000
+EMSG22A  DC    CL4' '                                                   12170000
+         DC    C' TO '                                                  12180000
+EMSG22B  DC    CL4' '                                                   12190000
+         DC    C' '                                                     12200000
+EMSG22L  EQU   *-EMSG22                                                 12210000
+EMSG23   DC    C'DISASM0223E STARTING DISPLACEMENT IS LARGER THAN ENDIN+12220000
+               G DISPLACEMENT OR CSECT'                         GP10025 12230000
+EMSG23L  EQU   *-EMSG23                                                 12240000
+EMSG24   DC    AL1(L'EMSG24T)                                   GP99139 12250000
+EMSG24T  DC    C'DISASM0224E MALFORMED STATEMENT; REQUIRES LABEL NAME/O*12260000
+               FFSET/TYPE/LEN/SECTNAME'                         GP99139 12270000
+EMSG25   DC    AL1(L'EMSG25T)                                   GP99139 12280000
+EMSG25T  DC    C'DISASM0225E OVERLAPPING OR DUPLICATE OFFSET.'  GP99139 12290000
+EMSG26   DC    AL1(L'EMSG26T)                                   GP99139 12300000
+EMSG26T  DC    C'DISASM0226W ASSEMBLER INPUT AFTER END CARD IGNORED.'   12310000
+EMSG33   DC    C'DISASM0233W UNSUPPORTED OR UNDEFINED VALUE'    GP09181 12320000
+EMSG33L  EQU   *-EMSG33                                         GP09181 12330000
+EMSG34   DC    C'DISASM0234W OPCODE MODULE NOT FOUND'           GP10015 12340000
+EMSG34L  EQU   *-EMSG34                                         GP10015 12350000
+EMSG36   DC    C'DISASM0236E SYNTAX ERROR IN STATEMENT'         GP10085 12360000
+EMSG36L  EQU   *-EMSG36                                         GP10085 12370000
+SUBCODE  DC    X'0'                                             GP10085 12380000
+SUB36M1  DC    CL16'MALFORMED'              0                   GP10085 12390000
+SUB36M2  DC    CL16'BAD OFFSET'             1                   GP10085 12400000
+         DC    CL16'PARSE ERROR'            2                   GP10085 12410000
+         DC    CL16'BAD HEX TEXT'           3                   GP10085 12420000
+         DC    CL16'QUOTE ERROR'            4                   GP10085 12430000
+SUB36M#  EQU   (*-SUB36M1)/(SUB36M2-SUB36M1)    5               GP10085 12440000
+*---------------------------------------------------------------------* 12450000
+*   INPUT MAPPING; MAJOR COMMANDS; DCBs; etc.                         * 12460000
+*---------------------------------------------------------------------* 12470000
+         SPACE 1                                                        12480000
+CTLSTMT  DS    0CL80                                                    12490000
+CTLTYPE  DC    CL09' '               STATEMENT TYPE                     12500000
+CTLDATA  DC    CL71' '               RELATED DATA                       12510000
+CTLSTMTL EQU   *-CTLSTMT                                                12520000
+         ORG   CTLDATA                                                  12530000
+CTL10    DS    CL10                  DATA STARTING AT COLUMN 10         12540000
+CTL20    DS    CL10                  DATA STARTING AT COLUMN 20         12550000
+CTL30    DS    CL10                  DATA STARTING AT COLUMN 30         12560000
+CTL40    DS    CL10                  DATA STARTING AT COLUMN 40         12570000
+CTL50    DS    CL10                  DATA STARTING AT COLUMN 50         12580000
+CTL60    DS    CL10                  DATA STARTING AT COLUMN 60         12590000
+CTL70    DS    CL10                  DATA STARTING AT COLUMN 70         12600000
+         ORG   CTLSTMT+80                                               12610000
+         SPACE 1                                                        12620000
+CNTLTBLE DC    CL09'ABEND    ',AL4(ABEND000)                            12630000
+CNTLTBL2 DC    CL09'ADATA    ',AL4(ADATA000)                    GP99167 12640000
+         DC    CL09'ASM START',AL4(ASM0000)                             12650000
+CNTLBASE DC    CL09'BASE     ',AL4(BASE0000)                            12660000
+         DC    CL09'CSECT    ',AL4(CSCT0000)                            12670000
+         DC    CL09'SECT     ',AL4(CSCT0000)                    GP10071 12680000
+CNTLDATA DC    CL09'DATA     ',AL4(DATA0000)                            12690000
+         DC    CL09'FILLER   ',AL4(DATA0000)     DS             GP10029 12700000
+         DC    CL09'ZDATA    ',AL4(DATA0000)     DS             GP10029 12710000
+         DC    CL09'FILL     ',AL4(DATA0000)     DS             GP10029 12720000
+         DC    CL09'LABEL    ',AL4(LABL0000)                            12730000
+         DC    CL09'LINE     ',AL4(LINE0000)                            12740000
+         DC    CL09'LINES    ',AL4(LINE0000)                            12750000
+         DC    CL09'LIST     ',AL4(ADATA000)                    GP99167 12760000
+         DC    CL09'MAX LINES',AL4(LINE0000)                            12770000
+         DC    CL09'MEMBER   ',AL4(MOD0000)                     GP99149 12780000
+         DC    CL09'MODULE   ',AL4(MOD0000)                             12790000
+         DC    CL09'NAME     ',AL4(MOD0000)                     GP99149 12800000
+         DC    CL09'OPCODES  ',AL4(OPCD000)                     GP10015 12810000
+         DC    CL09'OPCODE   ',AL4(OPCD000)                     GP10015 12820000
+         DC    CL09'INST     ',AL4(OPCD000)                     GP10015 12830000
+         DC    CL09'OPTIONS  ',AL4(OPTS000)                     GP08063 12840000
+         DC    CL09'OPTION   ',AL4(OPTS000)                     GP08063 12850000
+         DC    CL09'OPT      ',AL4(OPTS000)                     GP08063 12860000
+         DC    CL09'PFX      ',AL4(PRFX0000)                    GP99134 12870000
+         DC    CL09'PREFIX   ',AL4(PRFX0000)                    GP99134 12880000
+         DC    CL09'PRINT    ',AL4(PRNT0000)                    GP99134 12890000
+         DC    CL09'REP      ',AL4(REPL0000)                    GP10085 12900000
+         DC    CL09'REPLACE  ',AL4(REPL0000)                    GP10085 12910000
+         DC    CL09'SEQ LABEL',AL4(SEQ0000)                             12920000
+         DC    CL09'SEQLABEL ',AL4(SEQ0000)                     GP10085 12930000
+         DC    CL09'SYSADATA ',AL4(ADATA000)                    GP99167 12940000
+CNTLUSNG DC    CL09'USING    ',AL4(USNG0000)                            12950000
+         DC    CL09'VER      ',AL4(VERF0000)                    GP10085 12960000
+CNTLTBLN DC    CL09'VERIFY   ',AL4(VERF0000)                    GP10085 12970000
+CNTLTBLL EQU   CNTLTBL2-CNTLTBLE  SIZE OF ONE ENTRY             GP10085 12980000
+CNTLTBL# EQU   (CNTLTBLN-CNTLTBLE)/CNTLTBLL+1   ENTRY NUMBER    GP10085 12990000
+CNTLASME DC    CL09'ASM END'                                            13000000
+*---------------------------------------------------------------------* 13010000
+*                                                                     * 13020000
+*              DCBS                                                   * 13030000
+*                                                                     * 13040000
+*---------------------------------------------------------------------* 13050000
+DISIN    DCB   DDNAME=DISIN,         CONTROL STATEMENT DCB             +13060000
+               DSORG=PS,             .. SEQUENTIAL                     +13070000
+               EODAD=EXIT0000,       .. EOF ADDRESS                    +13080000
+               LRECL=80,             .. MUST BE LRECL=80               +13090000
+               MACRF=GM              .. GET-MOVE MODE                   13100000
+SYSIN    DCB   DDNAME=SYSIN,         ASSEMBLER'S INPUT DCB             +13110000
+               DSORG=PS,             .. SEQUENTIAL                     +13120000
+               LRECL=80,             .. MUST BE LRECL=80               +13130000
+               BLKSIZE=3120,         .. BLOCK SIZE                     +13140000
+               MACRF=PM              .. PUT-MOVE MODE                   13150000
+REGTBL1  DS    0C                    1-CHARACTER REGISTER NAMES         13160000
+         REG   0,0                                                      13170000
+         REG   1,1                                                      13180000
+         REG   2,2                                                      13190000
+         REG   3,3                                                      13200000
+         REG   4,4                                                      13210000
+         REG   5,5                                                      13220000
+         REG   6,6                                                      13230000
+         REG   7,7                                                      13240000
+         REG   8,8                                                      13250000
+         REG   9,9                                                      13260000
+         REG   A,10                                                     13270000
+         REG   B,11                                                     13280000
+         REG   C,12                                                     13290000
+         REG   D,13                                                     13300000
+         REG   E,14                                                     13310000
+         REG   F,15                                                     13320000
+         DC    X'FF'                                                    13330000
+REGTBL2  DS    0C                    2-CHARACTER REGISTER NAMES         13340000
+*OLD*    REG   R0,0                                                     13350000
+*OLD*    REG   R1,1                                                     13360000
+*OLD*    REG   R2,2                                                     13370000
+*OLD*    REG   R3,3                                                     13380000
+*OLD*    REG   R4,4                                                     13390000
+*OLD*    REG   R5,5                                                     13400000
+*OLD*    REG   R6,6                                                     13410000
+*OLD*    REG   R7,7                                                     13420000
+*OLD*    REG   R8,8                                                     13430000
+*OLD*    REG   R9,9                                                     13440000
+         REG   10,10                                                    13450000
+         REG   11,11                                                    13460000
+         REG   12,12                                                    13470000
+         REG   13,13                                                    13480000
+         REG   14,14                                                    13490000
+         REG   15,15                                                    13500000
+*OLD*    REG   RA,10                                                    13510000
+*OLD*    REG   RB,11                                                    13520000
+*OLD*    REG   RC,12                                                    13530000
+*OLD*    REG   RD,13                                                    13540000
+*OLD*    REG   RE,14                                                    13550000
+*OLD*    REG   RF,15                                                    13560000
+         DC    X'FF'                                                    13570000
+*EGTBL3  DS    0C                    3-CHARACTER REGISTER NAMES         13580000
+*OLD*    REG   R10,10                                                   13590000
+*OLD*    REG   R11,11                                                   13600000
+*OLD*    REG   R12,12                                                   13610000
+*OLD*    REG   R13,13                                                   13620000
+*OLD*    REG   R14,14                                                   13630000
+*OLD*    REG   R15,15                                                   13640000
+*OLD*    DCG   X'FF'                                                    13650000
+         SPACE 2                                                        13660000
+*---------------------------------------------------------------------* 13670000
+*                                                                     * 13680000
+*              REGISTER TABLE                                         * 13690000
+*                                                                     * 13700000
+*---------------------------------------------------------------------* 13710000
+REGDSCT  DSECT                                                          13720000
+REGNAME  DS    CL3                   REGISTER NAME                      13730000
+REGVALUE DS    AL1                   VALUE USED IN INSTRUCTIONS         13740000
+REGL     EQU   *-REGDSCT                                                13750000
+         COPY  DISASMDA                                                 13760000
+*---------------------------------------------------------------------* 13770000
+*                                                                     * 13780000
+*              COMMON DATA MAP                                        * 13790000
+*                                                                     * 13800000
+*---------------------------------------------------------------------* 13810000
+DISASM00 DISASMCM TYPE=DSECT                                            13820000
+         END  DISASM02                                                  13830000

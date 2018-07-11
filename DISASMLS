@@ -1,0 +1,286 @@
+DALS     TITLE 'D I S A S M L S  ***  PRODUCE COMPLETE SYSPRINT SOURCE' 00010000
+*********************************************************************** 00020000
+**                                                                   ** 00030000
+**  DISASMLS - PROGRAM TO READ SYSPRINT OUTPUT AND PRODUCE (SOME?)   ** 00040000
+**       SOURCE, WITH OR WITHOUT EXPANSION OF MACRO AND COPY CODE    ** 00050000
+**                                                                   ** 00060000
+**  INPUT:  DD DISLIST - ASSEMBLER LISTING.                          ** 00070000
+**                                                                   ** 00080000
+**  OUTPUT: DD DISPRINT - SOURCE, WITH ASSEMBLER OFFSETS, ETC.       ** 00090000
+**                                                                   ** 00100000
+**          DD DISPUNCH - SOURCE IN CARD FORMAT                      ** 00110000
+**                                                                   ** 00120000
+**  OPTIONS (SET IN DISASM02):                                       ** 00130000
+**         ASM    - PRINT SOURCE WITH ANNOTATIONS (DEFAULT)          ** 00140000
+**         NOMAC  - DO NOT PUNCH MACRO EXPANSIONS (DEFAULT)          ** 00150000
+**         NOCOPY - DO NOT PUNCH COPY INCLUDED CODE (DEFAULT)        ** 00160000
+**         MAC    - PUNCH MACRO EXPANSION; COMMENT MACRO INVOCATION  ** 00170000
+**         COPY   - PUNCH COPIED CODE; COMMENT COPY STATEMENT        ** 00180000
+**                                                                   ** 00190000
+**     (NOTE THAT A COPY INSIDE AN IN-LINE MACRO, AND A MACRO COPIED ** 00200000
+**      IN-LINE MAY PRODUCE UNEXPECTED OUTPUT)                       ** 00210000
+**                                                                   ** 00220000
+*********************************************************************** 00230000
+**                                                                   ** 00240000
+**  ADDED BY GERHARD POSTPISCHIL  JUNE 1999                          ** 00250000
+**                                                                   ** 00260000
+*********************************************************************** 00270000
+         COPY   DISASMGB                                                00280000
+DISASMLS MODHEAD BASE=(R12)  ENTRY HOUSEKEEPING                         00290000
+         ITRACE ID=ENTRY                                                00300000
+         TM    COMMDD,$PUNCHDD       IS DISPUNCH DD PRESENT?            00310000
+         BNO   GEN0010               NO                                 00320000
+         ITRACE ID=OPENPNCH                                             00330000
+         OPEN  (DISPUNCH,OUTPUT)     OPEN DISPUNCH                      00340000
+         TM    DCBOFLGS-IHADCB+DISPUNCH,DCBOFOPN                        00350000
+         BZ    ABORTER                                                  00360000
+GEN0010  OPEN  MF=(E,DCBLIST2)       OPEN DISLIST                       00370000
+         TM    DCBOFLGS-IHADCB+LISTDCB,DCBOFOPN                         00380000
+         BZ    ABORTER                                                  00390000
+         BAL   R9,GETLINE    PRIME IT                                   00400000
+         SPACE 1                                                        00410000
+DATAGET  BAL   R9,GETLINE    GET A RECORD                               00420000
+         SPACE 1                                                        00430000
+*   NOW PROCESS BY TYPE                                                 00440000
+*    OUTIND                                                             00450000
+*                                  SOURCE RECORD                        00460000
+*       +                          MACRO EXPANSION                      00470000
+*       C                          COPIED CODE                          00480000
+*   ONE RECORD IS STACKED TO ALLOW TESTING WHETHER THE NEXT RECORD      00490000
+*   IS COPIED OR EXPANDED. IF SO, THE USER'S EXPANSION OPTIONS          00500000
+*   ARE PROCESSED.                                                      00510000
+                                                                        00520000
+         CLI   OUTIND,C'C'   COPIED TEXT?                               00530000
+         BE    GOCOPY        YES                                        00540000
+         CLI   OUTIND,C'+'   MACRO GENERATED?                           00550000
+         BE    GOMACRO                                                  00560000
+*  PRIMARY INPUT.                                                       00570000
+*                                                                       00580000
+         CLI   NEXTREC+OUTIND-OUTREC,C'C'  IS NEXT RECORD A COPY?       00590000
+         BE    ORG01COP      YES                                        00600000
+         CLI   NEXTREC+OUTIND-OUTREC,C'+'  IS NEXT RECORD EXPANDED      00610000
+         BE    ORG01MAC      YES                                        00620000
+         B     GOPUNCH       NOTHING ELSE SPECIAL - PROCESS             00630000
+         SPACE 1                                                        00640000
+ORG01COP TM    PRINTFG3,$PFCOPY   EXPAND COPY OUTPUT?                   00650000
+         BZ    GOPUNCH       NO; PUNCH AND PRINT THE COPY STATEMENT     00660000
+         B     ORG01COM      MAKE COMMENT; THEN PRINT                   00670000
+         SPACE 1                                                        00680000
+ORG01MAC TM    PRINTFG3,$PFMAC   EXPAND MACRO OUTPUT?                   00690000
+         BZ    GOPUNCH       NO; PUNCH AND PRINT THE MACRO              00700000
+ORG01COM MVI   OUTCARD,C'*'  PRINT AS COMMENT                           00710000
+         B     GOPUNCH       PUNCH AND PRINT AS COMMENT                 00720000
+         SPACE 2                                                        00730000
+*  EXPANSION RECORD (MACRO OR SUBSTITUTION)                             00740000
+*                                                                       00750000
+GOMACRO  TM    PRINTFG3,$PFMAC   EXPAND MACROS?                         00760000
+         BZ    GOPRINT       NO; ONLY PRINT                             00770000
+         B     GOPUNCH       ELSE PUNCH AND PRINT                       00780000
+         SPACE 2                                                        00790000
+*  COPIED RECORD                                                        00800000
+*                                                                       00810000
+GOCOPY   TM    PRINTFG3,$PFCOPY   EXPAND COPY CODE?                     00820000
+         BZ    GOPRINT       NO; ONLY PRINT                             00830000
+         B     GOPUNCH       ELSE PUNCH AND PRINT                       00840000
+         SPACE 2                                                        00850000
+GOPUNCH  BAL   R9,PUNCH000   PUNCH A CARD IMAGE                         00860000
+GOPRINT  TM    PRINTFG2,$PFASM   LIST ASSEMBLY CODE?                    00870000
+         BZ    DATACLR       NO                                         00880000
+         BAL   R9,PRT0000    AND PRINT IT                               00890000
+         B     DATAGET       GET NEXT RECORD                            00900000
+DATACLR  BAL   R9,PRTCLEAR   CLEAR PRINT LINE                           00910000
+         B     DATAGET       GET NEXT RECORD                            00920000
+         SPACE 1                                                        00930000
+ABORTER  LA    R1,EMSG01                                                00940000
+         B     EXIT0010                                                 00950000
+EXIT0000 TM    LOCFLAG,$PFHAVE  DID WE FIND ANYTHING?                   00960000
+         BNZ   EXIT0020      YES                                        00970000
+         LA    R1,EMSG02                                                00980000
+EXIT0010 BAL   R14,PRINTMSG  ISSUE ERROR MESSAGE                        00990000
+         OI    COMMFLAG,$ABORT+$ERROR SET FLAGS                         01000000
+EXIT0020 CLOSE MF=(E,DCBLIST)  CLOSE OUTPUT DCBS                        01010000
+         SPACE 1                                                        01020000
+         ITRACE ID=EXIT                                                 01030000
+         LH    R15,CONDCODE  GET RETURN CODE                            01040000
+         L     R13,4(,R13)   RESTORE REGISTER 13                        01050000
+         L     R14,12(,R13)   RESTORE RETURN                            01060000
+         LM    R0,R12,20(R13)  RESTORE OTHER REGISTERS                  01070000
+         BR    R14           RETURN TO CALLER                           01080000
+         TITLE 'D I S A S M L S  ***  SUBROUTINES'                      01090000
+*********************************************************************** 01100000
+*                                                                     * 01110000
+*  GETLINE    SKIP UNTIL STMT LINE FOUND, THEN READ ONE AHEAD         * 01120000
+*    SKIP UNLESS VALID STMT NUMBER (LEADING BLANKS, NO LD 0, >0)      * 01130000
+*                                                                     * 01140000
+*********************************************************************** 01150000
+GETLINE  STM   R2,R15,GETLSAVE  SAVE IMPORTANT (?) REGISTERS            01160000
+         TM    LOCFLAG,$PFEOD2   SECOND END?                            01170000
+         BNZ   EXIT0000      ALL CLEARED OUT?                           01180000
+         TM    LOCFLAG,$PFEOD1   FIRST CALL AFTER EOF?                  01190000
+         BZ    GETLINEF      NO                                         01200000
+         XI    LOCFLAG,$PFEOD1+$PFEOD2   TOGGLE                         01210000
+         B     GETLINEX                                                 01220000
+GETLINEF TM    LOCFLAG,$PFSTMT  FOUND STATEMENT?                        01230000
+         BNZ   GETLINES      YES; LOOK FOR SOURCE                       01240000
+GETLINEG GET   LISTDCB       GET A CARD                                 01250000
+         LA    R0,7                                                     01260000
+         LA    R15,34(,R1)                                              01270000
+GETLINEH CLC   =C' STMT   S',0(R15)  SUBHEADER?                         01280000
+         BE    GETLINEI                                                 01290000
+         CLC   =C' Stmt   S',0(R15)  SUBHEADER?                         01300000
+         BE    GETLINEI                                                 01310000
+         LA    R15,1(,R15)   TRY NEXT COLUMN                            01320000
+         BCT   R0,GETLINEH                                              01330000
+         B     GETLINEG                                                 01340000
+GETLINEI LA    R15,7                                                    01350000
+         SR    R15,R0        GET OFFSET                                 01360000
+         ST    R15,TEXTOFF   SAVE IT                                    01370000
+         A     R1,TEXTOFF    ADJUST                                     01380000
+         MVC   SUBHEAD,0(R1) SAVE AS SUBHEADER                          01390000
+         OI    LOCFLAG,$PFSTMT                                          01400000
+         TM    PRINTFG2,$PFASM       PRINT ASSEMBLY TEXT ?              01410000
+         BZ    GETLINES              NO                                 01420000
+         MVC   COMMSUBH(SUBHEADL),SUBHEAD                               01430000
+         LA    R1,SUBHEADL           SUBHEADING LENGTH                  01440000
+         STH   R1,COMMSUBL           SET LENGTH                         01450000
+         MVI   COMMSUBL,X'FF'        SET NON-CENTERED INDICATOR         01460000
+         MVI   PRTCMD,$PRTHEAD       SET COMMAND                        01470000
+         BAL   R14,PRINTDAT          PRINT SUBHEADER                    01480000
+GETLINES MVC   OUTREC,NEXTREC  PROPAGATE PREVIOUS TO CURRENT            01490000
+         CLI   OUTCCONT,C' '   CONTINUATION?                    GP05089 01500000
+         BZ    GETLINET      NO                                 GP05089 01510000
+         OI    LOCFLAG,$PFCONT  SET IT ON                       GP05089 01520000
+GETLINET GET   LISTDCB       READ ANOTHER                               01530000
+         LR    R0,R1         GET START                                  01540000
+         LH    R1,DCBLRECL-IHADCB+LISTDCB  GET LENGTH                   01550000
+         A     R0,TEXTOFF    ADJUST FOR RDW, CARRIAGE CONTROL, ETC.     01560000
+         S     R1,TEXTOFF                                               01570000
+         BNP   GETLINET      SKIP IT                                    01580000
+         LA    R14,NEXTREC                                              01590000
+         LA    R15,L'NEXTREC                                            01600000
+         ICM   R1,8,COMMBLKS  REQUEST BLANK FILL                        01610000
+         MVCL  R14,R0        MOVE                                       01620000
+         CLI   NEXTREC+OUTSTMT-OUTREC-1,C' '   LEADING BLANK?           01630000
+         BNE   GETLINET      NO; IGNORE                                 01640000
+         TM    LOCFLAG,$PFCONT  LOOKING FOR CONTINUATION ?      GP05089 01650000
+         BZ    GETALINE      NO                                 GP05089 01660000
+         CLC   NEXTREC+OUTSTMT-OUTREC-1(L'OUTSTMT),NEXTREC+OUTSTMT-OUTR*01670000
+               EC            BLANK SEQUENCE ?                   GP05089 01680000
+         BNE   GETLINET      NO; SKIP                           GP05089 01690000
+         CLC   NEXTREC(34),NEXTREC+1  ALL/MOSTLY BLANK?         GP05089 01700000
+         BNE   GETLINET      NO; IGNORE                         GP05089 01710000
+         MVC   NEXTREC+OUTIND-OUTREC(1),OUTIND  INHERIT +/C     GP05089 01720000
+         NI    LOCFLAG,255-$PFCONT  SET IT OFF                  GP05089 01730000
+         B     GETLINEX      PASS IT BACK                       GP05089 01740000
+         SPACE 1                                                GP05089 01750000
+GETALINE CLI   NEXTREC+OUTSTMT-OUTREC+L'OUTSTMT-1,C'0'   TRAIL. DIGIT?  01760000
+         BL    GETLINET      NO; IGNORE                                 01770000
+         TRT   NEXTREC+OUTSTMT-OUTREC(L'OUTSTMT),NONBLK                 01780000
+         BZ    GETLINET                                                 01790000
+         CLI   0(R1),C'0'    NUMERIC START?                             01800000
+         BNH   GETLINET                                                 01810000
+         TRT   NEXTREC+OUTSTMT-OUTREC(L'OUTSTMT),NONDIG                 01820000
+         BNZ   GETLINET                                                 01830000
+         CLI   NEXTREC+OUTCARD-OUTREC,C' '  NAME FIELD PRESENT?         01840000
+         BNE   GETLINEX      YES                                        01850000
+         TRT   NEXTREC+OUTCARD-OUTREC+1(71),NONBLK  LOOK FOR TEXT       01860000
+         BZ    GETLINEX      HUH?                                       01870000
+         CLI   0(R1),C'='    LITERAL ?                                  01880000
+         BE    GETLINET      YES; SKIP                                  01890000
+GETLINEX LM    R2,R15,GETLSAVE  RESTORE REGISTERS                       01900000
+         BR    R9                                                       01910000
+EODAD    OI    LOCFLAG,$PFEOD1 SHOW FIRST END CALL                      01920000
+         MVC   NEXTREC,NEXTREC-1                                        01930000
+         B     GETLINEX      EXIT                                       01940000
+         SPACE 2                                                        01950000
+*********************************************************************** 01960000
+**                                                                   ** 01970000
+**   PUNCH OUTPUT  (WHEN DISPUNCH DD PRESENT)                        ** 01980000
+**                                                                   ** 01990000
+*********************************************************************** 02000000
+PUNCH000 OI    LOCFLAG,$PFHAVE                                          02010000
+         TM    COMMDD,$PUNCHDD       IS DISPUNCH DD PRESENT?            02020000
+         BNOR  R9                    NO                                 02030000
+         PUT   DISPUNCH,OUTCARD      PUNCH SOURCE STATEMENT             02040000
+         BR    R9                    RETURN                             02050000
+         SPACE 1                                                        02060000
+*********************************************************************** 02070000
+**                                                                   ** 02080000
+**   PRINT OUTPUT  (WHEN WANTED)                                     ** 02090000
+**                                                                   ** 02100000
+**   PRT0000 PRINT THE CURRENT PRINT LINE AS IS                      ** 02110000
+**                                                                   ** 02120000
+*********************************************************************** 02130000
+         SPACE 1                                                        02140000
+PRT0000  LA    R15,PRINTREC  SET TO PRINT AND CLEAR RECORD              02150000
+         TM    COMMFLAG,$ERROR       ERROR MESSAGE?                     02160000
+         BNZ   PRT0010               YES; PRINT IT                      02170000
+         TM    PRINTFG2,$PFASM       PRINT ASSEMBLY OUTPUT?             02180000
+         BNZ   PRT0010               YES                                02190000
+PRTCLEAR LA    R15,PRINTCLR  SET TO CLEAR PRINT LINE                    02200000
+PRT0010  BALR  R14,R15       PRINT & CLEAR, OR JUST CLEAR               02210000
+         BR    R9                    RETURN                             02220000
+         SPACE 2                                                        02230000
+         LTORG ,                                                        02240000
+         TITLE 'D I S A S M L S  ***  DATA/WORK AREAS/MAPPINGS'         02250000
+DCBLIST  OPEN  (DISPUNCH,OUTPUT,LISTDCB,(INPUT,REREAD)),MF=L            02260000
+DCBLIST2 EQU   DCBLIST+4,4,C'A'                                         02270000
+DISPUNCH DCB   DDNAME=DISPUNCH,DSORG=PS,MACRF=PM,RECFM=FB,LRECL=80      02280000
+LISTDCB  DCB   DDNAME=DISLIST,DSORG=PS,MACRF=GL,EODAD=EODAD             02290000
+         SPACE 1                                                        02300000
+GETLSAVE DS    16A           DUMPLINE SAVE AREA                         02310000
+TEXTOFF  DC    F'0'          INDENT FROM START OF PHYSICAL RECORD       02320000
+CONDCODE DC    H'0'          CONDITION CODE                             02330000
+LOCFLAG  DC    X'00'         LOCAL PROCESSING FLAGS                     02340000
+$PFEOD1  EQU   X'80'           EODAD ENTERED                            02350000
+$PFEOD2  EQU   X'40'           LOGICAL END PROCESSED                    02360000
+$PFCONT  EQU   X'20'           CONTINUATION CARD FOLLOWS        GP05089 02370000
+$PFHAVE  EQU   X'02'           PROCESSABLE RECORD FOUND                 02380000
+$PFSTMT  EQU   X'01'           STMT RECORD FOUND                        02390000
+         SPACE 1                                                        02400000
+EMSG01   DC    AL1(L'EMSG01T)                                           02410000
+EMSG01T  DC    C'DISASMLS01E  **** DATASET OPEN UNSUCCESSFUL ****'      02420000
+EMSG02   DC    AL1(L'EMSG02T)                                           02430000
+EMSG02T  DC    C'DISASMLS02E  **** NO PROCESSABLE SOURCE RECORDS FOUND *02440000
+               ****'                                                    02450000
+         SPACE 1                                                        02460000
+NEXTREC  DC    CL132' '                                                 02470000
+         SPACE 1                                                        02480000
+         SPACE 1                                                        02490000
+SUBHEAD  DC    CL132' '                                                 02500000
+SUBHEADL EQU   *-SUBHEAD                                                02510000
+         SPACE 2                                                        02520000
+NONBLK   DC    256X'FF'      STOP ON NON-BLANK                          02530000
+         ORG   NONBLK+C' '                                              02540000
+         DC    X'00'         AND PASS BLANKS                            02550000
+         ORG   ,                                                        02560000
+NONDIG   DC    256X'FF'      STOP ON NON-BLANK, NON-DIGIT               02570000
+         ORG   NONDIG+C' '                                              02580000
+         DC    X'00'         AND PASS BLANKS                            02590000
+         ORG   NONDIG+C'0'                                              02600000
+         DC    10X'00'       AND PASS DIGITS                            02610000
+         ORG   ,                                                        02620000
+         SPACE 1                                                        02630000
+         DCBD  DSORG=PS,DEVD=DA   DCB MAPPING                           02640000
+         SPACE 2                                                        02650000
+         COPY  DISASMDA                                                 02660000
+*---------------------------------------------------------------------* 02670000
+*                                                                     * 02680000
+*              COMMON DATA MAP                                        * 02690000
+*                                                                     * 02700000
+*---------------------------------------------------------------------* 02710000
+DISASM00 DISASMCM TYPE=DSECT                                            02720000
+DISASM00 DSECT ,             BACK TO WANTED DSECT                       02730000
+         ORG   PRTDATA                                                  02740000
+OUTREC   DS    0CL(L'NEXTREC)  ENTIRE PRINT LINE                        02750000
+OUTLCTR  DS    CL6,C         LOCATION COUNTER                           02760000
+         DS    3CL(4+1)      TEXT                                       02770000
+         DS    2CL(5+1)      ADDR1/2                                    02780000
+OUTSTMT  DS    CL5           STATEMENT NUMBER                           02790000
+OUTIND   DS    C             ADD INDICATOR                              02800000
+OUTCARD  DS    0CL80         SOURCE RECORD                      GP05089 02810000
+OUTCTEXT DS    CL71            TEXT OF RECORD                   GP05089 02820000
+OUTCCONT DS    C               CONTINUATION INDICATOR           GP05089 02830000
+OUTCSEQ  DS    CL8             (OPT.) SEQUENCE                  GP05089 02840000
+         ORG   ,                                                        02850000
+         END   ,                                                        02860000

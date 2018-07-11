@@ -1,0 +1,41 @@
+//DISASM  PROC LIB='SYSC.LINKLIB'                                       00000104
+//*                                                                     00000200
+//*   SAMPLE PROCEDURE (EDIT & COPY TO SYS2.PROCLIB) FOR DISASSEMBLER   00000300
+//*    ASSUMES PROGRAM WAS INSTALLED INTO SYSC.LINKLIB (STEPLIB)        00000404
+//*                                                                     00000500
+//* >>> CONTROL CARD INPUT SUPPLIED VIA DISIN DD CARD <<<               00000600
+//*                                                                     00000700
+//*                                                                     00000800
+//DISASM EXEC  PGM=DISASM01,REGION=1024K,TIME=1                         00000900
+//STEPLIB  DD  DISP=SHR,DSN=SYSC.LINKLIB                                00001004
+//*                                                                     00001100
+//*  ALL SYS--- DD CARDS FOLLOWING ARE FOR INTERNAL ASSEMBLER CALLS     00001200
+//SYSTERM  DD  SYSOUT=*                                                 00001300
+//SYSPRINT DD  DISP=(,PASS),DSN=&&ASPT,UNIT=SYSDA,                      00001400
+//             SPACE=(TRK,(100,100),RLSE),                              00001500
+//             DCB=(RECFM=FBM,LRECL=121,BLKSIZE=1331)                   00001600
+//SYSIN    DD  DISP=(,PASS),DSN=&&ASIN,UNIT=SYSDA,                      00001700
+//             SPACE=(TRK,(15,15),RLSE),                                00001800
+//             DCB=(RECFM=FB,LRECL=80,BLKSIZE=19040)                    00001900
+//SYSLIB   DD  DISP=SHR,DSN=SYS1.MACLIB,DCB=BLKSIZE=27920               00002004
+//         DD  DISP=SHR,DSN=SYS1.AMODGEN                                00002100
+//         DD  DISP=SHR,DSN=SYS1.HASPSRC                                00002200
+//*        DD  DISP=SHR,DSN=SYS1.PVTMACS (from optional source)         00002300
+//*        DD  DISP=SHR,DSN=user.maclib  (roll your own?)               00002400
+//SYSUT1   DD  UNIT=SYSDA,SPACE=(CYL,(5,1))                             00002500
+//SYSUT2   DD  UNIT=SYSDA,SPACE=(CYL,(5,1))                             00002600
+//SYSUT3   DD  UNIT=SYSDA,SPACE=(CYL,(5,1))                             00002700
+//SYSPUNCH DD  DUMMY                                                    00002800
+//SYSUDUMP DD  SYSOUT=*                                                 00002900
+//*  END ASSEMBLER CARDS                                                00003000
+//*                                                                     00003100
+//DISDEBUG DD  SYSOUT=*                                                 00003200
+//DISPRINT DD  SYSOUT=*                                                 00003304
+//DISPUNCH DD  SYSOUT=*                                                 00003404
+//DISMOD   DD  DISP=SHR,DSN=&LIB                                        00003500
+//         DD  DISP=SHR,DSN=SYS1.LINKLIB    SAMPLE                      00003604
+//         DD  DISP=SHR,DSN=SYS1.LPALIB       SYSTEM                    00003704
+//         DD  DISP=SHR,DSN=SYS1.NUCLEUS        LIBRARIES               00003804
+//         DD  DISP=SHR,DSN=SYS1.VTAMLIB                                00003900
+//         DD  DISP=SHR,DSN=SYS1.SVCLIB                                 00004000
+//*                                                                     00004100

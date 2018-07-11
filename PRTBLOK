@@ -1,0 +1,28 @@
+*---------------------------------------------------------------------* 00010000
+*                                                                     * 00020000
+*        PRINTER REQUEST BLOCK                                        * 00030000
+*                                                                     * 00040000
+*---------------------------------------------------------------------* 00050000
+         MACRO                                                          00060000
+&NAME    PRTBLOK  &TYPE=,&PFX=PRT                                       00070000
+         LCLC  &P            JUST TO MAKE IT SHORT                      00071000
+&P       SETC  '&PFX'                                                   00072000
+         AIF      ('&TYPE' EQ 'DSECT').DSECT                            00080000
+&NAME    DS    0C                                                       00090000
+         AGO      .NODSECT                                              00100000
+.DSECT   ANOP                                                           00110000
+         AIF      (T'&NAME EQ 'O').NONAME                               00120000
+&NAME    DSECT                                                          00130000
+.NODSECT ANOP                                                           00140000
+&P.CMD   DC    X'00'               COMMAND                              00150000
+$&P.HEAD EQU   C'H'                .. PRINT HEADING                     00160000
+$&P.SUBH EQU   C'S'                .. PRINT SUB-HEADING                 00170000
+$&P.PRT  EQU   C'P'                .. PRINT                             00180000
+$&P.MEM  EQU   C'M'                .. NEW MEMBER                        00190000
+$&P.CLS  EQU   C'C'                .. CLOSE PRINT                       00200000
+&P.CC    DC    C' '                CARRIAGE CONTROL                     00210000
+&P.DATA  DC    CL132' '            PRINT DATA                           00220000
+         MEXIT                                                          00230000
+.NONAME  ANOP                                                           00240000
+         MNOTE    12,'NAME REQUIRED WHEN TYPE=DSECT'                    00250000
+         MEND                                                           00260000

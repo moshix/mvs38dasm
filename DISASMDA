@@ -1,0 +1,214 @@
+         AIF ('&DAPRT' EQ 'ON').DA010                                   00010000
+         PRINT OFF                                                      00020000
+.DA010   ANOP                                                           00030000
+* ------------------------------------------------------------------- * 00040000
+*                                                                     * 00050000
+*     DISASM's data areas                                             * 00060000
+*                                                                     * 00070000
+*     There were so many different blocks that making up macros or    * 00080000
+*     copy members took more time than it was worth.  Most of the     * 00090000
+*     data areas are small, so it doesn't cost much to assemble them  * 00100000
+*     all in all the modules.                                         * 00110000
+*                                                                     * 00120000
+* ------------------------------------------------------------------- * 00130000
+         SPACE 2                                                        00140000
+* ------------------------------------------------------------------- * 00150000
+*                                                                     * 00160000
+*        BASE REGISTER DEFINITIONS                                    * 00170000
+*                                                                     * 00180000
+* ------------------------------------------------------------------- * 00190000
+BASEDSCT DSECT                                                          00200000
+BASENEXT DS   A                   NEXT BASE BLOCK                       00210000
+BASEEYE  DS   CL8                 EYE CATCHER                           00220000
+BASEBEGN DS   A                   STARTING DISPLACEMENT                 00230000
+BASEEND  DS   A                   ENDING DISPLACEMENT                   00240000
+BASEDISP DS   A                   DISPLACEMENT BASE REFERS TO           00250000
+BASEREG  DS   X                   BASE REGISTER                         00260000
+         DS   0A                    FASTER, BIGGER, BETTER              00270000
+BASEL    EQU  *-BASEDSCT                                                00280000
+         SPACE 2                                                        00290000
+* ------------------------------------------------------------------- * 00300000
+*                                                                     * 00310000
+*        DATA AREA DEFINITIONS                                        * 00320000
+*                                                                     * 00330000
+* ------------------------------------------------------------------- * 00340000
+DATADSCT DSECT                                                          00350000
+DATANEXT DS   A                   NEXT DATA BLOCK                       00360000
+DATAEYE  DS   CL8                 EYE CATCHER                           00370000
+DATANAME DS   CL8                 DATA NAME (VCON AND Q TYPES)          00380000
+DATALBA  DS   A                   LABEL BLOCK ADDRESS FOR ADCON         00390000
+DATALBD  DS   A                   DISPLACEMENT FROM LABEL FOR ADCON     00400000
+DATABEGN DS   A       1/3         STARTING DISPLACEMENT                 00410000
+DATAEND  DS   A       2/3         ENDING DISPLACEMENT                   00420000
+DATALEN  DS   A       3/3         LENGTH                                00430000
+DATAILEN DS   H                   ITEM SIZE                     GP99169 00440000
+DATAASMT DS   C    ASSEMBLER TYPE (X, C, ETC.; BUT 8 FOR CCW)   GP99169 00450000
+DATATYPE DS   X                   DATA TYPE                             00460000
+$DATAUSR EQU  X'01'               .. USER DEFINED                       00470000
+$DATADS  EQU  X'02'               .. FILLER (DS OR ORG)         GP10029 00480000
+$DATAINT EQU  X'03'               .. INTERNALLY DETECTED                00490000
+$DATAACN EQU  X'14'               .. A-CON                              00500000
+$DATAARL EQU  X'15'    10-LBL     .. A-CON W/CSECT RELOCATION   GP05212 00510000
+$DATAVCN EQU  X'16'               .. V-CON                              00520000
+$DATACXD EQU  X'37'               .. PSEUDO AREA SIZE                   00530000
+$DATAQ   EQU  X'38'               .. PSEUDO AREA DISPLACEMENT           00540000
+DATABASE DS   A                   ESD BASE FOR RELOCATABLES     GP10069 00550000
+DATAL    EQU  *-DATADSCT                                                00560000
+         SPACE 2                                                        00570000
+* ------------------------------------------------------------------- * 00580000
+*                                                                     * 00590000
+*        DSECT DEFINITIONS                                            * 00600000
+*                                                                     * 00610000
+* ------------------------------------------------------------------- * 00620000
+DSCTDSCT DSECT                                                          00630000
+DSCTNEXT DS   A                   NEXT DSECT BLOCK                      00640000
+DSCTEYE  DS   CL8                 EYE CATCHER                           00650000
+DSCTNAME DS   CL8                 DSECT'S NAME                          00660000
+DSCTLBA  DS   A                   FIRST LABEL BLOCK'S ADDRESS           00670000
+         DS   0A                    FASTER, BIGGER, BETTER              00680000
+DSCTL    EQU  *-DSCTDSCT                                                00690000
+         SPACE 2                                                        00700000
+* ------------------------------------------------------------------- * 00710000
+*                                                                     * 00720000
+*        ESD REFERENCES                                               * 00730000
+*                                                                     * 00740000
+* ------------------------------------------------------------------- * 00750000
+ESDDATA  DSECT                                                          00760000
+ESDNEXT  DS    A                  NEXT ESD BLOCK'S ADDRESS              00770000
+ESDEYE   DS    CL8                EYE CATCHER                           00780000
+ESDID    DS    H                  ESD ID                                00790000
+ESDNAME  DS    CL8                ENTRY POINT NAME                      00800000
+ESDTYPE  DS    X                  TYPE                                  00810000
+$ESDSD   EQU   X'00'              .. EXTERNAL SYMBOL                    00820000
+$ESDER   EQU   X'02'              .. UNRESOLVED EXTERNAL REFERENCE      00830000
+$ESDLR   EQU   X'03'              .. LABEL REFERENCE                    00840000
+$ESDPC   EQU   X'04'              .. PRIVATE CODE DEFINITION            00850000
+$ESDCM   EQU   X'05'              .. COMMON MODULE                      00860000
+$ESDPR   EQU   X'06'              .. PSEUDO REGISTER                    00870000
+$ESDNULL EQU   X'07'              .. NULL                               00880000
+$ESDWX   EQU   X'0A'              .. UNRESOLVED WEAK EXTERNAL REFERENCE 00890000
+$ESDOV   EQU   X'14'              .. OVERLAY SEGMENT TABLE              00900000
+$ESDPC1  EQU   X'20'              .. PRIVATE CODE DEFINITION (FIRST)    00910000
+ESDADDR  DS    AL3                ADDRESS OF ENTRY POINT                00920000
+ESDSEG   DS    X                  SEGMENT NUMBER                        00930000
+ESDLEN   DS    AL3                ENTRY LENGTH                          00940000
+ESDL     EQU   *-ESDNAME          ESD DATA LENGTH IN LOAD MODULE        00950000
+ESDFLAG  DS    X                  SPECIAL FLAGS                 GP10071 00960000
+$ESFXTRN EQU   X'80'                GENERATE EXTRN/WXTRN        GP10071 00970000
+         DS   0A                    FASTER, BIGGER, BETTER              00980000
+ESDDATAL EQU   *-ESDDATA                                                00990000
+         SPACE 2                                                        01000000
+* ------------------------------------------------------------------- * 01010000
+*                                                                     * 01020000
+*        LABEL BLOCK                                                  * 01030000
+*                                                                     * 01040000
+* ------------------------------------------------------------------- * 01050000
+LABLDSCT DSECT                                                          01060000
+LABLNEXT DS   A                   NEXT LABEL BLOCK                      01070000
+LABLEYE  DS   CL8                 EYE CATCHER                           01080000
+LABLNAME DS   CL8                 LABEL NAME                            01090000
+LABLDISP DS   A                   DISPLACEMENT FROM BASE                01100000
+LABLXREF DS   A                   CROSS-REFERENCE CHAIN         GP99184 01110000
+LABLSTMT DS   PL5                 X'0' OR STMT # OF DEFINITION  GP99184 01120000
+LABLTYPE DS   C                   LABEL TYPE                            01130000
+$LABLD   EQU  C'D'                .. LABEL AT DATA                      01140000
+$LABLE   EQU  C'E'                .. LABEL FROM AN ESD ENTRY            01150000
+$LABLI   EQU  C'I'                .. LABEL AT AN INSTRUCTION            01160000
+$LABLR   EQU  C'R'                .. LABEL FROM AN RLD ENTRY            01170000
+$LABLU   EQU  C'U'                .. LABEL FROM USER - UNSPECIFIED      01180000
+LABLSRCE DS   C                   SOURCE - U OR NULL            GP99139 01190000
+LABLASMT DS   C                   ASSEMBLER TYPE (X, C, ETC.)   GP99139 01200000
+         DS   0A                    FASTER, BIGGER, BETTER              01210000
+LABLL    EQU  *-LABLDSCT                                                01220000
+         SPACE 2                                                        01230000
+* ------------------------------------------------------------------- * 01240000
+*                                                                     * 01250000
+*        INSTRUCTION OPERAND REFERENCES                               * 01260000
+*                                                                     * 01270000
+* ------------------------------------------------------------------- * 01280000
+REFDSCT  DSECT                                                          01290000
+REFNEXT  DS   A                   NEXT REFERENCE BLOCK                  01300000
+REFEYE   DS   CL8                 EYE CATCHER                           01310000
+REFOPER1 DS   A                   OPERAND 1 REFERENCE                   01320000
+REFOPER2 DS   A                   OPERAND 2 REFERENCE                   01330000
+REFDISP1 DS   A                   DISPLACEMENT FROM LABEL               01340000
+REFDISP2 DS   A                   DISPLACEMENT FROM LABEL               01350000
+REFDISPI DS   A                   REFERENCING INSTRUCTIONS DISPLACEMENT 01360000
+REFOPCD  DS   XL2                 OP-CODE OF REFERENCING INSTRUCTION    01370000
+         DS   0A                    FASTER, BIGGER, BETTER              01380000
+REFL     EQU  *-REFDSCT                                                 01390000
+         SPACE 2                                                        01400000
+* ------------------------------------------------------------------- * 01410000
+*                                                                     * 01420000
+*        RELOCATION DATA REFERENCES                                   * 01430000
+*                                                                     * 01440000
+* ------------------------------------------------------------------- * 01450000
+RLDDATA  DSECT                                                          01460000
+RLDNEXT  DS    A                  NEXT RLD BLOCK'S ADDRESS              01470000
+RLDEYE   DS    CL8                EYE CATCHER                           01480000
+RLDESD   DS    A                  CORRESPONDING ESD'S ADDRESS           01490000
+RLDDISP  DS    A                  DISPLACEMENT TO CONSTANT              01500000
+RLDLEN   DS    H                  CONSTANT'S LENGTH                     01510000
+RLDTYPE  DS    X                  RLD TYPE                              01520000
+$RLDACON EQU   X'00'              .. ADCON                              01530000
+$RLDACRL EQU   X'01'              .. ADCON W/CSECT RELOCATION   GP05212 01540000
+$RLDVCON EQU   X'10'              .. VCON                               01550000
+$RLDPSDP EQU   X'20'              .. PSEUDO AREA DISPLACEMENT (Q)       01560000
+$RLDPSSZ EQU   X'30'              .. PSEUDO AREA SIZE         (CXD)     01570000
+$RLDER1  EQU   X'80'              .. UNRESOLVED REFERENCE               01580000
+$RLDER2  EQU   X'90'              .. UNRESOLVED REFERENCE               01590000
+RLDPTR   DS    XL2                RLD POINTER                           01600000
+RLDPP    DS    XL2                RLD POSITION POINTER                  01610000
+RLDDIR   DS    C                  DIRECTION (+ OR -)                    01620000
+         DS   0A                    FASTER, BIGGER, BETTER              01630000
+RLDDATAL EQU   *-RLDDATA          RLD DATA LENGTH                       01640000
+         SPACE 2                                                GP99148 01650000
+* ------------------------------------------------------------------- * 01660000
+*                                                                     * 01670000
+*        SYMBOL TABLE INPUT                                           * 01680000
+*                                                                     * 01690000
+* ------------------------------------------------------------------- * 01700000
+SYMDATA  DSECT ,                                                GP99148 01710000
+SYMNEXT  DS    A                  NEXT BLOCK'S ADDRESS          GP99148 01720000
+SYMRLEN  DS    H                  USED LENGTH                   GP99148 01730000
+SYMTEXT  DS    CL56               SYM CARD TEXT                 GP99148 01740000
+         DS   0A                    FASTER, BIGGER, BETTER      GP99148 01750000
+SYMDATAL EQU   *-SYMDATA          SYM DATA LENGTH               GP99148 01760000
+         SPACE 2                                                        01770000
+* ------------------------------------------------------------------- * 01780000
+*                                                                     * 01790000
+*        USING DEFINITIONS                                            * 01800000
+*                                                                     * 01810000
+* ------------------------------------------------------------------- * 01820000
+USNGDSCT DSECT                                                          01830000
+USNGNEXT DS   A                   NEXT USING BLOCK                      01840000
+USNGEYE  DS   CL8                 EYE CATCHER                           01850000
+USNGDSNM DS   CL8                 DSECT'S NAME                          01860000
+USNGLBNM DS   CL8                 LABEL WITHIN THE DSECT                01870000
+USNGDSA  DS   A                   RELATED DSECT BLOCK'S ADDRESS         01880000
+USNGLBA  DS   A                   LABEL BLOCK'S ADDRESS                 01890000
+USNGDISP DS   A                   LABEL'S DISPLACEMENT INTO THE DSECT   01900000
+USNGBEGN DS   A                   STARTING DISPLACEMENT                 01910000
+USNGEND  DS   A                   ENDING DISPLACEMENT                   01920000
+USNGBASE DS   X                   BASE                                  01930000
+USNGFLAG DS   X                   FLAGS                                 01940000
+$USNGND  EQU  X'80'               .. NO DISPLACEMENTS                   01950000
+         DS   0A                    FASTER, BIGGER, BETTER              01960000
+USNGL    EQU  *-USNGDSCT                                                01970000
+         SPACE 2                                                        01980000
+* ------------------------------------------------------------------- * 01990000
+*                                                                     * 02000000
+*   VERIFY / REPLACE BLOCK (SAME MAPPING, DIFFERENT CHAINS)           * 02010000
+*                                                                     * 02020000
+* ------------------------------------------------------------------- * 02030000
+VERPSECT DSECT ,                                                GP10082 02040000
+VERPNEXT DS    A                  NEXT BLOCK                    GP10082 02050000
+VERPOFFS DS    A   1/2            OFFSET OF FIRST BYTE          GP10082 02060000
+VERPLEN  DS    F   2/2            TEXT LENGTH - 1               GP10082 02070000
+VERPTEXT DS    CL64               VERIFY / REPLACE TEXT         GP10082 02080000
+         DS    0A                   FASTER, BIGGER, BETTER      GP10082 02090000
+VERPL    EQU   *-VERPSECT                                       GP10082 02100000
+         SPACE 1                                                        02110000
+         AIF  ('&DAPRT' EQ 'ON').DA020                                  02120000
+         PRINT ON                                                       02130000
+.DA020   ANOP                                                           02140000

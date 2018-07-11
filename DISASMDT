@@ -1,0 +1,496 @@
+DADT     TITLE 'D I S A S M D T  ***  PRODUCE COMPLETE SYSADATA SOURCE' 00010000
+*********************************************************************** 00020000
+**                                                                   ** 00030000
+**  DISASMDT - PROGRAM TO READ DISADATA OUTPUT AND PRODUCE COMPLETE  ** 00040000
+**       SOURCE, WITH OR WITOUT EXPANSION OF MACRO AND COPY CODE     ** 00050000
+**                                                                   ** 00060000
+**  WILL PROCESS OUTPUT AT LEVEL 1 AND 2. NO IDEA WHAT LEVEL 3       ** 00070000
+**    FROM HLASM 5 WILL BE LIKE.                                     ** 00080000
+**                                                                   ** 00090000
+**                                                                   ** 00100000
+**  INPUT:  DD DISADATA - ADATA OUTPUT FROM ASSEMBLER.               ** 00110000
+**                                                                   ** 00120000
+**  OUTPUT: DD DISPRINT - SOURCE, WITH ASSEMBLER OFFSETS, ETC.       ** 00130000
+**                                                                   ** 00140000
+**          DD DISPUNCH - SOURCE IN CARD FORMAT                      ** 00150000
+**                                                                   ** 00160000
+**  OPTIONS (SET IN DISASM02):                                       ** 00170000
+**         ASM    - PRINT SOURCE WITH ANNOTATIONS (DEFAULT)          ** 00180000
+**         NOMAC  - DO NOT PUNCH MACRO EXPANSIONS (DEFAULT)          ** 00190000
+**         NOCOPY - DO NOT PUNCH COPY INCLUDED CODE (DEFAULT)        ** 00200000
+**         MAC    - PUNCH MACRO EXPANSION; COMMENT MACRO INVOCATION  ** 00210000
+**         COPY   - PUNCH COPIED CODE; COMMENT COPY STATEMENT        ** 00220000
+**                                                                   ** 00230000
+**     (NOTE THAT A COPY INSIDE AN IN-LINE MACRO, AND A MACRO COPIED ** 00240000
+**      IN-LINE MAY PRODUCE UNEXPECTED OUTPUT)                       ** 00250000
+**                                                                   ** 00260000
+*********************************************************************** 00270000
+**                                                                   ** 00280000
+**  ADDED BY GERHARD POSTPISCHIL  JUNE 1999                          ** 00290000
+**                                                                   ** 00300000
+*********************************************************************** 00310000
+         COPY   DISASMGB                                                00320000
+DISASMDT MODHEAD BASE=(R12)  ENTRY HOUSEKEEPING                         00330000
+         ITRACE ID=ENTRY                                                00340000
+         TM    COMMDD,$PUNCHDD       IS DISPUNCH DD PRESENT?            00350000
+         BNO   GEN0010               NO                                 00360000
+         ITRACE ID=OPENPNCH                                             00370000
+         OPEN  (DISPUNCH,OUTPUT)     OPEN DISPUNCH                      00380000
+         TM    DCBOFLGS-IHADCB+DISPUNCH,DCBOFOPN                        00390000
+         BZ    ABORTER                                                  00400000
+GEN0010  OPEN  MF=(E,DCBLIST2)       OPEN DISADATA                      00410000
+         TM    DCBOFLGS-IHADCB+DATADCB,DCBOFOPN                         00420000
+         BZ    ABORTER                                                  00430000
+         TM    PRINTFG2,$PFASM       PRINT ASSEMBLY TEXT ?              00440000
+         BZ    GEN0015               NO                                 00450000
+         MVC   COMMSUBH(SUBHEADL),SUBHEAD                               00460000
+         LA    R1,SUBHEADL           SUBHEADING LENGTH                  00470000
+         STH   R1,COMMSUBL           SET LENGTH                         00480000
+         MVI   COMMSUBL,X'FF'        SET NON-CENTERED INDICATOR         00490000
+         MVI   PRTCMD,$PRTHEAD       SET COMMAND                        00500000
+         BAL   R14,PRINTDAT          PRINT SUBHEADER                    00510000
+GEN0015  DS    0H                                                       00520000
+         SPACE 1                                                        00530000
+DATAGET  GET   DATADCB       GET A RECORD                               00540000
+         LR    R10,R1        SAVE IT                                    00550000
+         USING ASMADATA,R10  DECLARE INPUT RECORD                       00560000
+         CLC   ADRTYP,=Y(ADRECID)  SOURCE RECORD?                       00570000
+         BNE   DATAGET       NO; LOOK FOR ANOTHER                       00580000
+         LH    R0,ASSRLEN    GET TEXT LENGTH                            00590000
+         LTR   R0,R0         TEST INPUT LENGTH                          00600000
+         BM    DATAGET       IGNORE IT                                  00610000
+         SPACE 1                                                        00620000
+         TM    PRINTFG2,$PFBUG   DEBUG MODE?                            00630000
+         BZ    NOBUG                                                    00640000
+         LR    R2,R10        COPY RECORD ADDRESS                        00650000
+         SR    R3,R3                                                    00660000
+         ICM   R3,3,ADLEN    GET RECORD LENGTH                          00670000
+         SR    R4,R4         PROCESS ENTIRE RECORD                      00680000
+         BAL   R14,DUMPLINE  DUMP IT                                    00690000
+         SPACE 1                                                        00700000
+*   DURING TESTING I FOUND AN ERROR IN THE HIGH-LEVEL ASSEMBLER (R2.0). 00710000
+*   THE 'PRIMARY INPUT' FLAG (01) IS SET TO COPY (03) WHEN THE          00720000
+*   INPUT COMES FROM A PDS MEMBER.  THE PARENT ORIGIN NUMBER IS         00730000
+*   CORRECT, SO WE TEST AND FIX HERE:                                   00740000
+NOBUG    CLI   ASRCORG,ASRCOMA   COPY ?                                 00750000
+         BNE   NOT03ERR      NO; SHOULD BE CORRECT?                     00760000
+         CLI   ASPRORG,0     UNREAL COPY?                               00770000
+         BNE   NOT03ERR      NO; MAY BE REAL COPY?                      00780000
+         MVI   ASRCORG,ASRCOPI   FIX IT                                 00790000
+NOT03ERR LA    R14,ASRTEXT   POINT TO NAME FIELD                        00800000
+         SLR   R15,R15                                                  00810000
+         ICM   R15,3,ASMCLEN   GET AND TEST LENGTH OF COPY/MACRO        00820000
+         BNZ   MEMCOPY       COPY/MACRO NAME                            00830000
+         ICM   R15,3,ASPTLEN   ELSE GET REAL MEMBER                     00840000
+         BNZ   MEMCOPY       SOURCE MEMBER                              00850000
+         LA    R15,L'COMMCSNM SET INPUT TO DEFAULT                      00860000
+         LA    R14,COMMCSNM  DEFAULT - POINT TO CURRENT MEMBER          00870000
+MEMCOPY  SH    R15,=H'1'     MAKE EXECUTE LENGTH                        00880000
+         BM    MEMNCOPY      OOPS - LEAVE BLANK                         00890000
+         EX    R15,EXMVCMEM  MOVE NAME TO OUTPUT                        00900000
+MEMNCOPY LA    R2,ASRTEXT    POINT TO START OF MIXED RECORD             00910000
+         AH    R2,ASMCLEN    SKIP OVER NAME                             00920000
+         CLI   0(R2),C'*'    COMMENTS ?                                 00930000
+         BE    MEMNPNAM      YES; ANOTHER ASM ERROR                     00940000
+         AH    R2,ASPTLEN    SKIP PARENT NAME, TOO                      00950000
+MEMNPNAM LA    R14,OUTCARD   CARD IMAGE DESTINATION                     00960000
+         LA    R15,L'OUTCARD                                            00970000
+         LH    R3,ADLEN  SOURCE LENGTH                                  00980000
+         ICM   R3,8,COMMBLKS  REQUEST BLANK FILL                        00990000
+         MVCL  R14,R2                                                   01000000
+         SPACE 1                                                        01010000
+*   NOW PROCESS BY TYPE                                                 01020000
+*   REC_ORG  PAR_ORG  TYPE  MACH                                        01030000
+*      01       00     03    0C    COPY REQUEST                         01040000
+*      01              04    00    MACRO INVOCATION                     01050000
+*      01       00     05    00    MACRO PROTOTYPE (IN-LINE)            01060000
+*      01                          SOURCE RECORD                        01070000
+*      02       00                 SYMBOL SUBSTITUTION                  01080000
+*      02       >0                 MACRO EXPANSION                      01090000
+*      02       01  SEQ.FLD 01-N   EXPANSION OF IN-LINE MACRO           01100000
+*      03                          COPIED CODE                          01110000
+         CLI   ASRCORG,ASRCOMA  MACRO OR LIBMAC COPY?                   01120000
+         BNL   GOCOPY        YES                                        01130000
+         CLI   ASRCORG,ASRCOMG  GENERATED?                              01140000
+         BE    GOMACRO                                                  01150000
+*  PRIMARY INPUT.                                                       01160000
+*                                                                       01170000
+         CLC   ASRTYPE(2),=AL1(ASRTASM,12)  COPY?                       01180000
+         BE    ORG01COP      YES                                        01190000
+         CLC   ASRTYPE(2),=AL1(ASRTASM,51)  LITERAL?                    01200000
+         BE    GOPRINT       YES; PRINT IT ONLY                         01210000
+         CLC   ASRTYPE(2),=AL1(ASRCOMAR,0)  MACRO?                      01220000
+         BE    ORG01MAC      YES                                        01230000
+         CLC   ASRTYPE(2),=AL1(ASRCOMAD,0)  INLINE?                     01240000
+         BE    ORG01INL      YES                                        01250000
+         B     GOPUNCH       NOTHING ELSE SPECIAL - PROCESS             01260000
+         SPACE 1                                                        01270000
+ORG01COP TM    PRINTFG3,$PFCOPY   EXPAND COPY OUTPUT?                   01280000
+         BZ    GOPUNCH       NO; PUNCH AND PRINT THE COPY STATEMENT     01290000
+         B     ORG01COM      MAKE COMMENT; THEN PRINT                   01300000
+         SPACE 1                                                        01310000
+ORG01MAC TM    PRINTFG3,$PFMAC   EXPAND MACRO OUTPUT?                   01320000
+         BZ    GOPUNCH       NO; PUNCH AND PRINT THE MACRO              01330000
+*FAILS*  CLC   =H'0',ASINPNO   REQUEST FOR IN-LINE MACRO?               01340000
+*FAILS*  BE    GOPUNCH       YES; RETAIN AND SKIP EXPANSION             01350000
+ORG01COM MVI   OUTCARD,C'*'  PRINT AS COMMENT                           01360000
+         B     GOPUNCH       PUNCH AND PRINT AS COMMENT                 01370000
+         SPACE 1                                                        01380000
+*  LATER DECIDE HOW TO HANDLE IN-LINE MACRO DEFINITION CONTAINING       01390000
+*   A COPY (TRACK MACRO/MEND PAIRS)                                     01400000
+ORG01INL B     GOPUNCH       NOTHING ELSE SPECIAL - PROCESS             01410000
+         SPACE 2                                                        01420000
+*  EXPANSION RECORD (MACRO OR SUBSTITUTION)                             01430000
+*                                                                       01440000
+GOMACRO  MVI   OUTIND,C'&&'  FLAG AS SUBSTITUTION RECORD                01450000
+         CLI   ASPRORG,0     SUBSTITUTION RECORD?                       01460000
+         BE    GOPRINT       YES; NEVER PUNCH                           01470000
+         MVI   OUTIND,C'+'   FLAG AS MACRO EXPANSION                    01480000
+*DEFER*  CLC   =C'01-',OUTCARD+72  POSSIBLE IN-LINE EXPANSION?          01490000
+*DEFER*  BNE   ORG02MAC      NO; TEST                                   01500000
+*DEFER*  CLI   OUTCARD+72+3,C'0'  NUMERIC 'MACRO' NAME?                 01510000
+*DEFER*  BNL   GOPRINT       YES; DON'T EXPAND                          01520000
+ORG02MAC TM    PRINTFG3,$PFMAC   EXPAND MACROS?                         01530000
+         BZ    GOPRINT       NO; ONLY PRINT                             01540000
+         B     GOPUNCH       ELSE PUNCH AND PRINT                       01550000
+         SPACE 2                                                        01560000
+*  COPIED RECORD                                                        01570000
+*                                                                       01580000
+GOCOPY   MVI   OUTIND,C'C'   FLAG AS COPY                               01590000
+         CLI   ASPRORG,1  IN-LINE MACRO WITH COPY?                      01600000
+*  DON'T KNOW HOW TO TEST THIS, YET.                                    01610000
+ORG02COP TM    PRINTFG3,$PFCOPY   EXPAND COPY CODE?                     01620000
+         BZ    GOPRINT       NO; ONLY PRINT                             01630000
+         B     GOPUNCH       ELSE PUNCH AND PRINT                       01640000
+         SPACE 2                                                        01650000
+GOPUNCH  BAL   R9,PUNCH000   PUNCH A CARD IMAGE                         01660000
+         TM    PRINTFG2,$PFASM   LIST ASSEMBLY CODE?                    01670000
+         BZ    DATACLR       NO                                         01680000
+GOPRINT  ICM   R0,15,ASLOCTR  LOCATION COUNTER                          01690000
+         BAL   R9,HEX2EBC    MAKE PRINTABLE                             01700000
+         MVC   OUTLCTR,HEXEDOUT  SHOW LOCATION COUNTER                  01710000
+         ICM   R0,12,ASRCORG  GET REC/PARENT ORIGIN                     01720000
+         BAL   R9,HEX2EBC    MAKE PRINTABLE                             01730000
+         MVC   OUTRORG,HEXEDOUT  SHOW RECORD ORG                        01740000
+         MVC   OUTPORG,HEXEDOUT+2  AND PARENT ORG                       01750000
+         ICM   R0,14,ASRTYPE  GET TYPE/OPCD/FLAGS                       01760000
+         BAL   R9,HEX2EBC    CONVERT                                    01770000
+         MVC   OUTRTYP,HEXEDOUT   RECORD TYPE                           01780000
+         MVC   OUTMTYP,HEXEDOUT+2 MACHINE CODE TYPE                     01790000
+         MVC   OUTFLGS,HEXEDOUT+4 FLAGS                                 01800000
+         ICM   R0,15,ASSTMT  STATEMENT NUMBER                           01810000
+         CVD   R0,COMMDWRD                                              01820000
+         MVC   OUTSTMT,=X'2020202120'                                   01830000
+         ED    OUTSTMT-1(L'OUTSTMT+1),COMMDWRD+5                        01840000
+         ICM   R0,15,ASINPNO  GET REC/PARENT FILE #                     01850000
+         BAL   R9,HEX2EBC    MAKE PRINTABLE                             01860000
+*DEBUG*  MVC   OUTRLF,HEXEDOUT   SHOW FILE #S                           01870000
+         BAL   R9,PRT0000    AND PRINT IT                               01880000
+         B     DATAGET       GET NEXT RECORD                            01890000
+DATACLR  BAL   R9,PRTCLEAR   CLEAR PRINT LINE                           01900000
+         B     DATAGET       GET NEXT RECORD                            01910000
+EXMVCMEM MVC   OUTMEM(0),0(R14)  MOVE COPY/MACRO/SOURCE NAME            01920000
+         SPACE 1                                                        01930000
+ABORTER  LA    R1,EMSG01                                                01940000
+         B     EXIT0010                                                 01950000
+EODAD    TM    LOCFLAG,$PFHAVE  DID WE FIND ANYTHING?                   01960000
+         BNZ   EXIT0020      YES                                        01970000
+         LA    R1,EMSG02                                                01980000
+EXIT0010 BAL   R14,PRINTMSG  ISSUE ERROR MESSAGE                        01990000
+         OI    COMMFLAG,$ABORT+$ERROR SET FLAGS                         02000000
+EXIT0020 CLOSE MF=(E,DCBLIST)  CLOSE OUTPUT DCBS                        02010000
+         SPACE 1                                                        02020000
+         ITRACE ID=EXIT                                                 02030000
+         LH    R15,CONDCODE  GET RETURN CODE                            02040000
+         L     R13,4(,R13)   RESTORE REGISTER 13                        02050000
+         L     R14,12(,R13)   RESTORE RETURN                            02060000
+         LM    R0,R12,20(R13)  RESTORE OTHER REGISTERS                  02070000
+         BR    R14           RETURN TO CALLER                           02080000
+         TITLE 'D I S A S M D T  ***  SUBROUTINES'                      02090000
+*********************************************************************** 02100000
+*                                                                     * 02110000
+*  DUMPLINE FORMAT HEX DATA LINE                                      * 02120000
+*    R2 : START ADDRESS     R3: LENGTH       R4: MAX TO DUMP          * 02130000
+*                                                                     * 02140000
+*********************************************************************** 02150000
+         SPACE 1                                                        02160000
+DUMPLINE STM   R0,R15,DUMPSAVE   SAVE REGISTERS                         02170000
+         MVI   PRTDATA-1,C'0' SET TO DOUBLE SPACE                       02180000
+         LTR   R4,R4         DID USER SPECIFY ANY DUMP LIMIT?           02190000
+         BP    *+6           YES; HONOR IT                              02200000
+         BCTR  R4,0          ELSE LET IT RUN                            02210000
+         SR    R7,R7         OFFSET FROM START                          02220000
+         LR    R0,R2         COPY FOR CONVERSION                        02230000
+         BAL   R9,HEX2EBC    CONVERT                                    02240000
+         MVC   PLDISP-3(8),HEXEDOUT  SHOW ADDRESS                       02250000
+         LR    R0,R3         COPY FOR CONVERSION                        02260000
+         BAL   R9,HEX2EBC    CONVERT                                    02270000
+         MVC   PLDISP+6(8),HEXEDOUT  SHOW LENGTH                        02280000
+         MVI   PLDISP+5,C'/'  FLAG LENGTH                               02290000
+         LTR   R3,R3         ANY LENGTH?                                02300000
+         BNP   DUMPLINX      NO; QUIT                                   02310000
+DMPLLINE LA    R14,32        TEXT SIZE                                  02320000
+         MIN   R14,(R3)      BUT NOT MORE THAN WE HAVE                  02330000
+         BCTR  R14,0         ADJUST FOR EXECUTE                         02340000
+         EX    R14,DMPEXTXT  MOVE TEXT                                  02350000
+         EX    R14,DMPEXTRN  MAKE THEM PRINTABLE                        02360000
+         MVI   PRTDATA+98,C'*'                                          02370000
+         MVI   PRTDATA+131,C'*'                                         02380000
+         LA    R8,PLINST-3   POINT TO FIRST AVAILABLE SPACE             02390000
+         LA    R5,2          TWO SETS PER LINE                          02400000
+DMPLGRUP LA    R9,4          SET FOR 4 WORDS PER LINE                   02410000
+DMPLWORD LA    R0,4          CHARACTERS PER GROUP                       02420000
+DMPLBYTE LR    R14,R3        COPY RESIDUAL LENGTH                       02430000
+         MIN   R14,(R0)      BUT NOT MORE THAN 4                        02440000
+         LR    R15,R14       SAVE LENGTH                                02450000
+         BCTR  R15,0         EXECUTE LENGTH                             02460000
+         EX    R15,DMPLEXMV  MOVE TO WORK AREA                          02470000
+         LR    R1,R14        GET LENGTH BACK                            02480000
+         SLL   R14,5         MAKE OUTPUT LENGTH                         02490000
+         OR    R14,R1        UNPACK LENGTH; OUT+1; IN+1                 02500000
+         EX    R14,DMPLEXUN  UNPACK                                     02510000
+         SRL   R14,4         MAKE DOUBLED LENGTH                        02520000
+         EX    R14,DMPLEXTR  MAKE PRINTABLE                             02530000
+         AR    R8,R14        FIRST UNUSED BYTE                          02540000
+         MVI   0(R8),C' '    CLEAN IT                                   02550000
+         LA    R8,1(,R8)     NEXT OUTPUT                                02560000
+         AR    R2,R1         NEXT INPUT                                 02570000
+         AR    R7,R1         SET NEW OFFSET                             02580000
+         SR    R3,R1         RESIDUAL OUTPUT LENGTH                     02590000
+         BNP   DUMPLINX      NO MORE; RETURN                            02600000
+         BCT   R9,DMPLWORD   DO NEXT WORD                               02610000
+         LA    R8,1(,R8)     EXTRA GAP                                  02620000
+         BCT   R5,DMPLGRUP                                              02630000
+         SPACE 1                                                        02640000
+         CLR   R7,R4         DID ENOUGH ?                               02650000
+         BNL   DUMPLINX      YES; QUIT NOW                              02660000
+         LTR   R3,R3         ANY MORE TO DO?                            02670000
+         BNP   DUMPLINX      NO; GET OUT                                02680000
+         BAL   R9,PRT0000    WRITE THIS LINE AND CLEAR IT               02690000
+         LR    R0,R2         COPY FOR CONVERSION                        02700000
+         BAL   R9,HEX2EBC    CONVERT                                    02710000
+         MVC   PLDISP-3(8),HEXEDOUT  SHOW ADDRESS                       02720000
+         LR    R0,R7         COPY FOR CONVERSION                        02730000
+         BAL   R9,HEX2EBC    CONVERT                                    02740000
+         MVC   PLDISP+6(8),HEXEDOUT  SHOW LENGTH                        02750000
+         LA    R14,PLDISP+5  LOCATION FOR OFFSET PLUS                   02760000
+         LA    R15,7         DON'T DO TOO MUCH                          02770000
+DMPLZLOP CLI   1(R14),C'0'   LEADING ZERO?                              02780000
+         BNE   DMPLZPUT      NO                                         02790000
+         MVI   1(R14),C' '   BLANK IT                                   02800000
+         LA    R14,1(,R14)                                              02810000
+         BCT   R15,DMPLZLOP  DO PRIOR                                   02820000
+DMPLZPUT MVI   0(R14),C'+'   PRETTIFY                                   02830000
+         B     DMPLLINE      FORMAT CONTINUATION LINE                   02840000
+         SPACE 1                                                        02850000
+DUMPLINX BAL   R9,PRT0000    WRITE THIS LINE AND CLEAR IT               02860000
+         LM    R0,R15,DUMPSAVE  RESTORE USER'S REGISTERS                02870000
+         BR    R14           RETURN TO CALLER                           02880000
+         SPACE 1                                                        02890000
+DMPLEXMV MVC   HEXEDIN(0),0(R2)  MOVE EXACT LENGTH TO AVOID 0C4         02900000
+DMPLEXUN UNPK  0(0,R8),HEXEDIN(0)  UNPACK +1 EXTRA                      02910000
+DMPLEXTR TR    0(0,R8),HEXTRTAB  MAKE PRINTABLE CHARACTERS              02920000
+DMPEXTXT MVC   PRTDATA+99(0),0(R2) MOVE USER'S DATA                     02930000
+DMPEXTRN TR    PRTDATA+99(0),CHARPRT    MAKE PRINTABLE                  02940000
+         SPACE 2                                                        02950000
+HEX2EBC  STCM  R0,15,HEXEDIN  STORE INPUT                               02960000
+         UNPK  HEXEDOUT(L'HEXEDOUT+1),HEXEDIN(L'HEXEDIN+1)              02970000
+         TR    HEXEDOUT,HEXTRTAB                                        02980000
+         BR    R9            RETURN TO CALLER                           02990000
+HEXTAB   DC    C'0123456789ABCDEF'                                      03000000
+HEXTRTAB EQU   HEXTAB-C'0'                                              03010000
+         SPACE 2                                                        03020000
+*********************************************************************** 03030000
+**                                                                   ** 03040000
+**   PUNCH OUTPUT  (WHEN DISPUNCH DD PRESENT)                        ** 03050000
+**                                                                   ** 03060000
+*********************************************************************** 03070000
+PUNCH000 OI    LOCFLAG,$PFHAVE  SHOW THAT WE PRODUCED SOMETHING         03080000
+         TM    COMMDD,$PUNCHDD       IS DISPUNCH DD PRESENT?            03090000
+         BNOR  R9                    NO                                 03100000
+         PUT   DISPUNCH,OUTCARD      PUNCH SOURCE STATEMENT             03110000
+         BR    R9                    RETURN                             03120000
+         SPACE 1                                                        03130000
+*********************************************************************** 03140000
+**                                                                   ** 03150000
+**   PRINT OUTPUT  (WHEN WANTED)                                     ** 03160000
+**                                                                   ** 03170000
+**   PRT0000 PRINT THE CURRENT PRINT LINE AS IS                      ** 03180000
+**                                                                   ** 03190000
+*********************************************************************** 03200000
+         SPACE 1                                                        03210000
+PRT0000  LA    R15,PRINTREC  SET TO PRINT AND CLEAR RECORD              03220000
+         TM    COMMFLAG,$ERROR       ERROR MESSAGE?                     03230000
+         BNZ   PRT0010               YES; PRINT IT                      03240000
+         TM    PRINTFG2,$PFASM       PRINT ASSEMBLY OUTPUT?             03250000
+         BNZ   PRT0010               YES                                03260000
+PRTCLEAR LA    R15,PRINTCLR  SET TO CLEAR PRINT LINE                    03270000
+PRT0010  BALR  R14,R15       PRINT & CLEAR, OR JUST CLEAR               03280000
+         BR    R9                    RETURN                             03290000
+         SPACE 2                                                        03300000
+         LTORG ,                                                        03310000
+         TITLE 'D I S A S M D T  ***  DATA/WORK AREAS/MAPPINGS'         03320000
+DCBLIST  OPEN  (DISPUNCH,OUTPUT,DATADCB,(INPUT,REREAD)),MF=L            03330000
+DCBLIST2 EQU   DCBLIST+4,4,C'A'                                         03340000
+DISPUNCH DCB   DDNAME=DISPUNCH,DSORG=PS,MACRF=PM,RECFM=FB,LRECL=80      03350000
+DATADCB  DCB   DDNAME=DISADATA,DSORG=PS,MACRF=GL,EODAD=EODAD            03360000
+         SPACE 1                                                        03370000
+DUMPSAVE DS    16A           DUMPLINE SAVE AREA                         03380000
+CONDCODE DC    H'0'          CONDITION CODE                             03390000
+LOCFLAG  DC    X'00'                                                    03400000
+$PFHAVE  EQU   X'02'         OUTPUT RECORD PROCESSED                    03410000
+HEXEDIN  DC    CL4' '        HEX INPUT                                  03420000
+HEXEDOUT DC    CL8' ',C' '   HEX OUTPUT + EXTRA                         03430000
+         SPACE 1                                                        03440000
+EMSG01   DC    AL1(L'EMSG01T)                                           03450000
+EMSG01T  DC    C'DISASMDT01E  **** DATASET OPEN UNSUCCESSFUL ****'      03460000
+EMSG02   DC    AL1(L'EMSG02T)                                           03470000
+EMSG02T  DC    C'DISASMDT02E  **** NO PROCESSABLE SOURCE RECORDS FOUND *03480000
+               ****'                                                    03490000
+         SPACE 1                                                        03500000
+EMSG00   DC    AL1(L'EMSG00T)                                           03510000
+EMSG00T  DC    C'DISASMDT00E  **** ADATA UNAVAILABLE PRE-XA MVS ****'   03520000
+         SPACE 1                                                        03530000
+SUBHEAD  DC    CL08'    LOC ',C' '                                      03540000
+         DC    CL14' ORG  TY CD FG',C' '                                03550000
+         DC    CL05' STMT',C' '                                         03560000
+         DC    CL80' SOURCE STATEMENT',CL2' '                           03570000
+         DC    C'MEMBER'                                                03580000
+SUBHEADL EQU   *-SUBHEAD                                                03590000
+         SPACE 1                                                        03600000
+CHARPRT  DC    256X'FF'                                                 03610000
+         ORG   CHARPRT+X'40'                                            03620000
+         DC    X'40'                                                    03630000
+         ORG   CHARPRT+X'4A'                                            03640000
+         DC    X'4A4B4C4D4E4F'                                          03650000
+         ORG   CHARPRT+X'5A'                                            03660000
+         DC    X'5A5B5C5D5E5F'                                          03670000
+         ORG   CHARPRT+X'60'                                            03680000
+         DC    X'6061'                                                  03690000
+         ORG   CHARPRT+X'6A'                                            03700000
+         DC    X'6A6B6C6D6E6F'                                          03710000
+         ORG   CHARPRT+X'79'                                            03720000
+         DC    X'797A7B7C7D7E7F'                                        03730000
+         ORG   CHARPRT+X'81'                                            03740000
+         DC    X'818283848586878889'                                    03750000
+         ORG   CHARPRT+X'91'                                            03760000
+         DC    X'919293949596979899'                                    03770000
+         ORG   CHARPRT+X'A2'                                            03780000
+         DC    X'A2A3A4A5A6A7A8A9'                                      03790000
+         ORG   CHARPRT+X'C1'                                            03800000
+         DC    X'C1C2C3C4C5C6C7C8C9'                                    03810000
+         ORG   CHARPRT+X'D1'                                            03820000
+         DC    X'D1D2D3D4D5D6D7D8D9'                                    03830000
+         ORG   CHARPRT+X'E2'                                            03840000
+         DC    X'E2E3E4E5E6E7E8E9'                                      03850000
+         ORG   CHARPRT+X'F0'                                            03860000
+         DC    X'F0F1F2F3F4F5F6F7F8F9'                                  03870000
+         ORG   ,                                                        03880000
+         SPACE 2                                                        03890000
+         PUSH  PRINT                                                    03900000
+         PRINT ON,GEN,DATA                                              03910000
+*        ASMADATA PRINT=GEN,OUTPUT=NO,SOURCE=YES,COMPUNIT=YES           03920000
+*  IBM DEFINITIONS WON'T ASSEMBLE UNDER ASM XF                          03930000
+ASMADATA DSECT ,                                                        03940000
+ADLEN    DS    XL2           LENGTH                                     03950000
+         DS    XL2                                                      03960000
+ADVERS   DS    X             VERSION OF HL ASM                          03970000
+ADHLA    EQU   16            ASM 1/2                                    03980000
+ADRTYP   DS    XL2           RECORD TYPE                                03990000
+ADLVL    DS    X             ASMADATA VERSION                           04000000
+ADLV1    EQU   1               LEVEL 1                                  04010000
+ADLV2    EQU   2               LEVEL 2                                  04020000
+ADCFG    DS    X             CONTINUATION FLAG                          04030000
+ADCFN    EQU   X'00'           NOT CONTINUED                            04040000
+ADCFY    EQU   X'01'           CONTINUED                                04050000
+ADEDN    DS    X             EDITION ?                                  04060000
+ADED0    EQU   0               ?                                        04070000
+         DS    CL2                                                      04080000
+ADORG    DS    0H            FOLLOWED BY REAL DATA                      04090000
+ADSIZE   EQU   *-ASMADATA    HEADER SIZE                                04100000
+*                                                                       04110000
+         ORG   ADORG                                                    04120000
+ADRECID  EQU   X'0030'       SOURCE RECORD TYPE                         04130000
+ASSTMT   DS  FL4             STMT NUMBER                                04140000
+ASESDID  DS  FL4             ESD ID                                     04150000
+ASINREC  DS  FL4             SOURCE RECORD NUMBER                       04160000
+ASINPAR  DS  FL4             SOURCE PARENT'S RECORD NUMBER              04170000
+ASININO  DS  HL2             INPUT FILE NUMBER                          04180000
+ASINPNO  DS  HL2             PARENT FILE NUMBE                          04190000
+ASLOCTR  DS  FL4             LOCATION COUNTER                           04200000
+ASRCORG  DS  X               TEXT SOURCE                                04210000
+ASRCOPI  EQU X'01'             PRIMARY INPUT                            04220000
+ASRCOMG  EQU X'02'             MACRO GENERATION                         04230000
+ASRCOMA  EQU X'03'             MACRO/COPY CODE                          04240000
+ASRCOLM  EQU X'04'             LIBMAC COPY                              04250000
+ASPRORG  DS  X               PARENT TEXT SOURCE                         04260000
+         DS  XL3               ?                                        04270000
+ASRTYPE  DS  X               TEXT TYPE                                  04280000
+ASRTCOM  EQU X'01'           COMMENT                                    04290000
+ASRCOMAH EQU X'02'           MACHINE CODE                               04300000
+ASRTASM  EQU X'03'           ASM INSTRUCTION                            04310000
+ASRCOMAR EQU X'04'           MACRO INSTRUCTION                          04320000
+ASRCOMAD EQU X'05'           MACRO DEFINITION                           04330000
+ASOPCOD  DS  X             OPCODE                                       04340000
+ASAFLGS  DS  X             ADDRESS FIELD FLAGS                          04350000
+ASAFLG1  EQU X'80'         ADDR 1 PRESENT                               04360000
+ASAFLG2  EQU X'40'         ADDR 2 PRESENT                               04370000
+ASADDR1  DS  FL4           ADDR 1 VALUE                                 04380000
+ASADDR2  DS  FL4           ADDR 2 VALUE                                 04390000
+ASNMOFF  DS    HL2           NAME OFFSET                                04400000
+ASNMLEN  DS    HL2           NAME LENGTH                                04410000
+ASOPOFF  DS    HL2           OPERATION FIELD OFFSET                     04420000
+ASOPLEN  DS    HL2           OPERATION FIELD LENGTH                     04430000
+ASONOFF  DS    HL2           OPERAND FIELD OFFSET                       04440000
+ASONLEN  DS    HL2           OPERAND FIELD LENGTH                       04450000
+ASRMOFF  DS    HL2           OFFSET TO COMMENT FIELD                    04460000
+ASRMLEN  DS    HL2           LENGTH OF COMMENTS                         04470000
+ASCCOFF  DS    HL2           OFFSET TO CONTINUATION COLUMN              04480000
+         DS    FL4             ?                                        04490000
+ASMCLEN  DS    HL2           MACRO/COPY NAME LENGTH                     04500000
+ASPTLEN  DS    HL2           PARENT MACRO/COPY NAME LENGTH              04510000
+ASSRLEN  DS    HL2           SOURCE RECORD LENGTH                       04520000
+         DS    XL8             ?                                        04530000
+ASCPNAM  DS    0CL256        MACRO/COPY NAME                            04540000
+ASPTNAM  DS    0CL256        PARENT MACRO/COPY NAME                     04550000
+ASRTEXT  DS    0CL80         SOURCE RECORD TEXT                         04560000
+ASRSIZE  EQU *-ASMADATA      LENGTH LESS TEXT FIELDS                    04570000
+*                                                                       04580000
+         ORG   ADORG                                                    04590000
+ADCMPUID EQU   X'0002'       PROGRAM DECK START/END RECORD              04600000
+ACSEIN   DS    XL2           START/END FLAG                             04610000
+ACSEINST EQU   X'0000'       START                                      04620000
+ACSEINEN EQU   X'0001'       END                                        04630000
+ACRESVD  DS    CL2             ?                                        04640000
+ACRECNO  DS    FL4           RECORDS COUNT IN THIS DECK                 04650000
+ACRSIZE  EQU *-ASMADATA      LENGTH OF THIS RECORD TYPE                 04660000
+         POP   PRINT                                                    04670000
+         SPACE 1                                                        04680000
+         DCBD  DSORG=PS,DEVD=DA   DCB MAPPING                           04690000
+         SPACE 2                                                        04700000
+         COPY  DISASMDA                                                 04710000
+*---------------------------------------------------------------------* 04720000
+*                                                                     * 04730000
+*              COMMON DATA MAP                                        * 04740000
+*                                                                     * 04750000
+*---------------------------------------------------------------------* 04760000
+DISASM00 DISASMCM TYPE=DSECT                                            04770000
+DISASM00 DSECT ,             BACK TO WANTED DSECT                       04780000
+         ORG   PRTDATA       AND RECORD MAPPING                         04790000
+PLDISP   EQU   PRTDATA+09,6,C'C' DISPLACEMENT                           04800000
+PLINST   EQU   PRTDATA+28,6,C'C' OPCODE                                 04810000
+         ORG   PRTDATA                                                  04820000
+OUTLCTR  DS    CL8,C         LOCATION COUNTER                           04830000
+OUTRORG  DS    CL2,C         RECORD ORIGIN                              04840000
+OUTPORG  DS    CL2,C         PARENT ORIGIN                              04850000
+OUTRTYP  DS    CL2,C         RECORD TYPE                                04860000
+OUTMTYP  DS    CL2,C         MACHINE INSTRUCTION                        04870000
+OUTFLGS  DS    CL2,C         FLAGS                                      04880000
+OUTSTMT  DS    CL5           STATEMENT NUMBER                           04890000
+OUTIND   DS    C             ADD INDICATOR                              04900000
+OUTCARD  DS    CL80          SOURCE RECORD                              04910000
+         DS    CL2                                                      04920000
+*DEBUG*  OUTRLF   DS    CL8,C         RELATIVE FILE NUMBERS             04930000
+OUTMEM   DS    CL8,C         SOURCE MEMBER                              04940000
+         ORG   ,                                                        04950000
+         END   ,                                                        04960000
