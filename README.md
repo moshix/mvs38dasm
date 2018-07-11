@@ -16,9 +16,9 @@ HOWEVER, there seem to be two versions of this Postpischil disassembler, both be
 
 The SYSCPK most folks download and install is an IBM 3350 DASD image from Jay Moseley's website. That SYSCPK image was recently (in January 2018) updated by Jay Moseley and contains a newer version of the disassembler. That version does not assemble cleanly on TK4- (which of course is the MVS 3.8 system most folks run nowadays). 
 
-I happen to have an IBM 3390 SYSCPK image I create myself back in 2015 from the 3350 SYSCPK image back then, and that contains an older version of the Postpischil disassembler which assembles and runs very cleanly on TK4-. It still has all the same features as the newer version, including support for 31bit OSs. 
+I happen to have an IBM 3390 SYSCPK image I created myself back in 2015 from the 3350 SYSCPK image back then, and that contains an older version of the Postpischil disassembler which assembles and runs very cleanly on TK4-. It still has all the same features as the newer version, including support for 31bit OSs. 
 
-In short, this repository contains the version from my 3390 SYSCPK which assembles and runs beautifully on MVS3.8 TK4-, on OS390 and even on z/OS 2.10 as tested on the University of Leipzig system I have access to. 
+In short, this repository contains the version from my 3390 SYSCPK which assembles and runs beautifully on MVS3.8 TK4-, on OS390 and even on z/OS 2.10. 
 
 
 
@@ -42,29 +42,29 @@ How to run it
 -------------
 
 
-check out the documentation in member $$DOC and RTFM, but here is an example JCL:
+check out the documentation in member $$DOC and RTFM, but here is an example JCL to run the disassembler:
 
-  //....     EXEC PGM=DISASM01,REGION=nnnnK               REQ   
-  //STEPLIB  DD DSN=xxxx,DISP=SHR                         OPT   
-  //SYSPRINT DD DSN=&&PRT,DISP=(NEW,PASS),                OPT   
+  //DIASM     EXEC PGM=DISASM01,REGION=950K
+  //STEPLIB  DD DSN=SYS1.LINKLIB,DISP=SHR
+  //SYSPRINT DD DSN=&&PRT,DISP=(NEW,PASS),
   //            UNIT=SYSDA,                                     
   //            SPACE=(TRK,(15,15)),                            
   //            DCB=(RECFM=FBM,LRECL=121,BLKSIZE=12100)         
-  //SYSIN    DD DSN=&&IN,DISP=(NEW,PASS),                 OPT   
+  //SYSIN    DD DSN=&&IN,DISP=(NEW,PASS),
   //            UNIT=SYSDA,                                     
   //            SPACE=(TRK,(15,15)),                            
   //            DCB=(RECFM=FB,LRECL=80,BLKSIZE=3120)            
-  //SYSLIB   DD DSN=xxxx,DISP=SHR                         OPT   
-  //SYSUT1   DD UNIT=SYSDA,SPACE=(CYL,(1,1))              OPT   
-  //SYSUT2   DD UNIT=SYSDA,SPACE=(CYL,(1,1))   XF ONLY    OPT   
-  //SYSUT3   DD UNIT=SYSDA,SPACE=(CYL,(1,1))   XF ONLY    OPT   
-  //SYSPUNCH DD DUMMY                                     OPT   
-  //DISDEBUG DD SYSOUT=*                                  OPT   
-  //DISPRINT DD SYSOUT=*                                  REQ   
-  //DISPUNCH DD SYSOUT=class                              OPT   
-  //DISMOD   DD DISP=SHR,DSN=load.mod.pds                 REQ   
-  //         DD DISP=SHR,DSN=load.mod.pds2 .....          OPT   
-  //DISIN    DD *                                         REQ   
+  //SYSLIB   DD DSN=xxxx,DISP=SHR       
+  //SYSUT1   DD UNIT=SYSDA,SPACE=(CYL,(1,1))  
+  //SYSUT2   DD UNIT=SYSDA,SPACE=(CYL,(1,1))   
+  //SYSUT3   DD UNIT=SYSDA,SPACE=(CYL,(1,1))  
+  //SYSPUNCH DD DUMMY                        
+  //DISDEBUG DD SYSOUT=*                    
+  //DISPRINT DD SYSOUT=*                   
+  //DISPUNCH DD SYSOUT=class              
+  //DISMOD   DD DISP=SHR,DSN=load.mod.pds 
+  //         DD DISP=SHR,DSN=load.mod.pds2 
+  //DISIN    DD *                        
         control statements                                      
   //                                                            
 
