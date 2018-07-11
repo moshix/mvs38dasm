@@ -6,11 +6,21 @@ This is a re-share of Gerhard Postpischil's simply amazing S/360 and S/370 disas
 What it is
 ----------
 
-It has become somewhat difficult to find a disassembler which can itself be assembled with the old MVS IFOX assembler. A lot of the disassemblers you find on the CBT tape require newer assemblers (such as the H assembler) or HLASM. While we do have support for s390x instructiosn in Hercules and in MVS 3.8 as delieved by TK4-, the lack of a modern assembler often means we can easily build a good, solid disassembler. 
+It has become somewhat difficult to find a disassembler which can itself be assembled with the old MVS IFOX assembler. A lot of the disassemblers you find on the CBT tape require newer assemblers (such as the H assembler) or HLASM. While we do have support for s390x instruction in Hercules and in MVS 3.8 as delieved by TK4-, the lack of a modern assembler often means we cannot easily build a good, solid disassembler. 
 
 CBT file 217 contains an ok disassemblr by Alan Field. The listing produced by that disassembler was a bit too simple, and even though often it handled SVCs correctly, often it didn't. 
 
 Gerhard Pospischil went and created, with powerful, beautiful, but clearly in casual programming style (and that's a compliment!) a very powerful disassembler which assembles perfectly and runs perfectly in MVS3.8j 8505 as delivered in TK4. 
+
+HOWEVER, there seem to be two versions of this Postpischil disassembler, both being distributed by the Moseley SYSCPK compiler pack. One assembles cleanly, the other doesn't. Let me explain:
+
+The SYSCPK most folks download and install is an IBM 3350 DASD image from Jay Moseley's website. That SYSCPK image was recently (in January 2018) updated by Jay Moseley and contains a newer version of the disassembler. That version does not assemble cleanly on TK4- (which of course is the MVS 3.8 system most folks run nowadays). 
+
+I happen to have an IBM 3390 SYSCPK image I create myself back in 2015 from the 3350 SYSCPK image back then, and that contains an older version of the Postpischil disassembler which assembles and runs very cleanly on TK4-. It still has all the same features as the newer version, including support for 31bit OSs. 
+
+In short, this repository contains the version from my 3390 SYSCPK which assembles and runs beautifully on MVS3.8 TK4-, on OS390 and even on z/OS 2.10 as tested on the University of Leipzig system I have access to. 
+
+
 
 
 
