@@ -44,9 +44,9 @@ How to run it
 
 check out the documentation in member $$DOC and RTFM, but here is an example JCL to run the disassembler:
 
-  //DIASM     EXEC PGM=DISASM01,REGION=950K
-  //STEPLIB  DD DSN=SYS1.LINKLIB,DISP=SHR
-  //SYSPRINT DD DSN=&&PRT,DISP=(NEW,PASS),
+  //DIASM     EXEC PGM=DISASM01,REGION=950K  
+  //STEPLIB  DD DSN=SYS1.LINKLIB,DISP=SHR  
+  //SYSPRINT DD DSN=&&PRT,DISP=(NEW,PASS),  
   //            UNIT=SYSDA,                                     
   //            SPACE=(TRK,(15,15)),                            
   //            DCB=(RECFM=FBM,LRECL=121,BLKSIZE=12100)         
