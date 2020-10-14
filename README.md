@@ -69,7 +69,15 @@ check out the documentation in member $$DOC and RTFM, but here is an example JCL
   //                                                            
 
 
+Other Disassemblers
+===================
+
+While we are on this topic, check out this disassembler written by A. Armstrong
+in Rexx with support with the latest IBM z15 instructions. 
+https://github.com/abend0c1/da
+
 have fun!
 
 Moshix
-July 2018
+
+October 2020
