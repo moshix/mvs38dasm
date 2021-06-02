@@ -1,3 +1,7 @@
+[![Discord](https://img.shields.io/discord/423767742546575361.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/vpEv3HJ)
+<img alt="Linux" src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black">
+<a href="codenotary.com"><img src="https://raw.githubusercontent.com/moshix/mvs/master/secured-by-immudb.svg" width="130px;"/></a>
+
 # mvs38dasm
 
 This is a re-share of Gerhard Postpischil's simply amazing S/360 and S/370 disassembler for MVS3.8
