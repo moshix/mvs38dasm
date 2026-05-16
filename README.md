@@ -68,7 +68,7 @@ check out the documentation in member $$DOC and RTFM, but here is an example JCL
   //DISIN    DD *                        
         control statements                                      
   //                                                            
-<</pre>
+</pre>
 
 Other Disassemblers
 ===================
