@@ -11,7 +11,7 @@ It has become somewhat difficult to find a disassembler which can itself be asse
 
 CBT file 217 contains an ok disassemblr by Alan Field. The listing produced by that disassembler was a bit too simple, and even though often it handled SVCs correctly, often it didn't. 
 
-Gerhard Pospischil went and created, with powerful, beautiful, but clearly in casual programming style (and that's a compliment!) a very powerful disassembler which assembles perfectly and runs perfectly in MVS3.8j 8505 as delivered in TK4. 
+Gerhard Pospischil went and created, with powerful, beautiful, but clearly casual programming style (and that's a compliment!) a very powerful disassembler which assembles perfectly and runs perfectly in MVS3.8j 8505 as delivered in TK4. 
 
 HOWEVER, there seem to be two versions of this Postpischil disassembler, both being distributed by the Moseley SYSCPK compiler pack. One assembles cleanly, the other doesn't. Let me explain:
 
